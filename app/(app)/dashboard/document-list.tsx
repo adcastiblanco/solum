@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { Spinner } from "@/components/spinner";
 
 export type DocumentRow = {
@@ -79,12 +79,17 @@ function RetryButton({
 
 function formatTimestamp(iso: string): string {
   const d = new Date(iso);
-  return d.toLocaleString(undefined, {
+  // Fixed locale + UTC to keep server and client output identical and avoid
+  // React hydration mismatches (error #418). The previous undefined locale
+  // produced different strings between Node SSR and the user's browser.
+  return d.toLocaleString("en-US", {
     year: "numeric",
     month: "short",
     day: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: "UTC",
+    hour12: false,
   });
 }
 
@@ -96,6 +101,8 @@ export function DocumentList({
   onRetry: () => void;
 }) {
   const router = useRouter();
+  const [pendingId, setPendingId] = useState<string | null>(null);
+  const [, startTransition] = useTransition();
   if (documents.length === 0) {
     return (
       <div className="rounded-[var(--r-lg)] border border-dashed border-[var(--gray-200)] bg-white px-8 py-16 text-center">
@@ -128,20 +135,30 @@ export function DocumentList({
         <tbody>
           {documents.map((doc) => {
             const clickable = doc.status === "done";
+            const isPending = pendingId === doc.id;
             return (
               <tr
                 key={doc.id}
                 onClick={() => {
-                  if (clickable) router.push(`/review/${doc.id}`);
+                  if (!clickable || isPending) return;
+                  setPendingId(doc.id);
+                  // useTransition keeps the row interactive during the RSC
+                  // navigation; loading.tsx fills the screen during the SSR.
+                  startTransition(() => {
+                    router.push(`/review/${doc.id}`);
+                  });
                 }}
                 className={`border-t border-[var(--gray-100)] transition-colors ${
                   clickable
                     ? "cursor-pointer hover:bg-navy-light"
                     : "hover:bg-[var(--gray-50)]"
-                }`}
+                } ${isPending ? "bg-navy-light" : ""}`}
               >
                 <td className="px-4 py-3 font-sans text-sm text-navy">
-                  {doc.file_name}
+                  <span className="inline-flex items-center gap-2">
+                    {isPending && <Spinner size={12} />}
+                    {doc.file_name}
+                  </span>
                 </td>
                 <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                   <div className="flex items-center gap-2">
