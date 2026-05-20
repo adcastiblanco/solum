@@ -1,0 +1,229 @@
+[
+  {
+    "name": "payer.name",
+    "value": "Cigna",
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": "Insurance Cigna"
+  },
+  {
+    "name": "payer.fax",
+    "value": null,
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": null
+  },
+  {
+    "name": "payer.phone",
+    "value": null,
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": null
+  },
+  {
+    "name": "request.date",
+    "value": "02/03/2026",
+    "confidence": 0.9,
+    "bbox": null,
+    "source_quote": "Report Date 02/03/2026"
+  },
+  {
+    "name": "member.last_name",
+    "value": "Nair",
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": "Patient Priya S. Nair"
+  },
+  {
+    "name": "member.first_name",
+    "value": "Priya",
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": "Patient Priya S. Nair"
+  },
+  {
+    "name": "member.middle_initial",
+    "value": "S",
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": "Patient Priya S. Nair"
+  },
+  {
+    "name": "member.dob",
+    "value": "09/14/1991",
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": "DOB 09/14/1991"
+  },
+  {
+    "name": "member.gender",
+    "value": "Female",
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": "Gender Female"
+  },
+  {
+    "name": "member.member_id",
+    "value": "CGN-3847201-U",
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": "Member ID CGN-3847201-U"
+  },
+  {
+    "name": "member.group_number",
+    "value": "88240",
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": "Group 88240"
+  },
+  {
+    "name": "member.phone",
+    "value": null,
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": null
+  },
+  {
+    "name": "member.address",
+    "value": null,
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": null
+  },
+  {
+    "name": "requesting_provider.name",
+    "value": "Dr. James K. Hartwell, MD",
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": "Ordering Physician Dr. James K. Hartwell, MD"
+  },
+  {
+    "name": "requesting_provider.npi",
+    "value": "1678902345",
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": "NPI 1678902345"
+  },
+  {
+    "name": "requesting_provider.facility",
+    "value": "Cedar Park Family Medicine",
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": "Clinic Cedar Park Family Medicine"
+  },
+  {
+    "name": "requesting_provider.tax_id",
+    "value": null,
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": null
+  },
+  {
+    "name": "requesting_provider.phone",
+    "value": "(512) 555-0415",
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": "Phone (512) 555-0415"
+  },
+  {
+    "name": "requesting_provider.fax",
+    "value": null,
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": null
+  },
+  {
+    "name": "requesting_provider.address",
+    "value": null,
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": null
+  },
+  {
+    "name": "referring_provider.name",
+    "value": null,
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": null
+  },
+  {
+    "name": "referring_provider.npi",
+    "value": null,
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": null
+  },
+  {
+    "name": "referring_provider.phone",
+    "value": null,
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": null
+  },
+  {
+    "name": "service.cpt_codes",
+    "value": [
+      "80053",
+      "83036",
+      "80061",
+      "84443"
+    ],
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": "Complete Metabolic Panel (CMP) -- CPT: 80053; HbA1c -- CPT: 83036; Lipid Panel -- CPT: 80061; TSH -- CPT: 84443"
+  },
+  {
+    "name": "service.icd10_codes",
+    "value": [
+      "E11.65"
+    ],
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": "Type 2 Diabetes Mellitus (E11.65)"
+  },
+  {
+    "name": "service.diagnosis_descriptions",
+    "value": [
+      "Type 2 Diabetes Mellitus",
+      "Dyslipidemia"
+    ],
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": "Elevated fasting glucose and HbA1c consistent with Type 2 Diabetes Mellitus (E11.65). Dyslipidemia noted"
+  },
+  {
+    "name": "clinical.presenting_symptoms",
+    "value": "Elevated fasting glucose 142 mg/dL (ref 65-99), HbA1c 7.8% (ref <5.7), estimated average glucose 177 mg/dL. Total cholesterol 228 mg/dL (ref <200), triglycerides 195 mg/dL (ref <150), HDL cholesterol 42 mg/dL (ref >50), LDL cholesterol 147 mg/dL (ref <100). TSH 2.45 mIU/L within normal limits (ref 0.45-4.50).",
+    "confidence": 0.95,
+    "bbox": null,
+    "source_quote": "Glucose, Fasting 142 mg/dL 65-99 HIGH; Hemoglobin A1c 7.8 % <5.7 normal; 5.7-6.4 prediabetes HIGH; Total Cholesterol 228 mg/dL <200 HIGH; Triglycerides 195 mg/dL <150 HIGH; HDL Cholesterol 42 mg/dL >50 LOW; LDL Cholesterol (calc) 147 mg/dL <100 HIGH; TSH 2.45 mIU/L 0.45-4.50"
+  },
+  {
+    "name": "clinical.history",
+    "value": "Elevated fasting glucose and HbA1c consistent with Type 2 Diabetes Mellitus (E11.65). Dyslipidemia noted.",
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": "Elevated fasting glucose and HbA1c consistent with Type 2 Diabetes Mellitus (E11.65). Dyslipidemia noted"
+  },
+  {
+    "name": "clinical.medications",
+    "value": null,
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": null
+  },
+  {
+    "name": "clinical.assessments",
+    "value": null,
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": null
+  },
+  {
+    "name": "clinical.treatment_goals",
+    "value": "Recommend lifestyle modification and consider statin therapy.",
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": "recommend lifestyle modification and consider statin therapy"
+  }
+]

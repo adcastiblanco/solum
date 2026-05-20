@@ -1,0 +1,219 @@
+[
+  {
+    "name": "payer.name",
+    "value": "UNITED HEALTHCARE",
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": "UNITED HEALTHCARE"
+  },
+  {
+    "name": "payer.fax",
+    "value": null,
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": null
+  },
+  {
+    "name": "payer.phone",
+    "value": "1-800-555-0199",
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": "Member Services: 1-800-555-0199"
+  },
+  {
+    "name": "request.date",
+    "value": null,
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": null
+  },
+  {
+    "name": "member.last_name",
+    "value": "Thompson",
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": "David Allen Thompson"
+  },
+  {
+    "name": "member.first_name",
+    "value": "David",
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": "David Allen Thompson"
+  },
+  {
+    "name": "member.middle_initial",
+    "value": "A",
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": "DAVID A. THOMPSON"
+  },
+  {
+    "name": "member.dob",
+    "value": "11/03/1982",
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": "DOB: 11/03/1982"
+  },
+  {
+    "name": "member.gender",
+    "value": "Male",
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": "Gender: Male"
+  },
+  {
+    "name": "member.member_id",
+    "value": "UHC-84729103-05",
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": "Member ID: UHC-84729103-05"
+  },
+  {
+    "name": "member.group_number",
+    "value": "742901",
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": "Group #: 742901"
+  },
+  {
+    "name": "member.phone",
+    "value": "(214) 555-0392",
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": "Phone: (214) 555-0392"
+  },
+  {
+    "name": "member.address",
+    "value": "7821 Lakewood Blvd, Apt 4C, Dallas, TX 75214",
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": "Address: 7821 Lakewood Blvd, Apt 4C, Dallas, TX 75214"
+  },
+  {
+    "name": "requesting_provider.name",
+    "value": null,
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": null
+  },
+  {
+    "name": "requesting_provider.npi",
+    "value": null,
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": null
+  },
+  {
+    "name": "requesting_provider.facility",
+    "value": null,
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": null
+  },
+  {
+    "name": "requesting_provider.tax_id",
+    "value": null,
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": null
+  },
+  {
+    "name": "requesting_provider.phone",
+    "value": null,
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": null
+  },
+  {
+    "name": "requesting_provider.fax",
+    "value": null,
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": null
+  },
+  {
+    "name": "requesting_provider.address",
+    "value": null,
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": null
+  },
+  {
+    "name": "referring_provider.name",
+    "value": null,
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": null
+  },
+  {
+    "name": "referring_provider.npi",
+    "value": null,
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": null
+  },
+  {
+    "name": "referring_provider.phone",
+    "value": null,
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": null
+  },
+  {
+    "name": "service.cpt_codes",
+    "value": null,
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": null
+  },
+  {
+    "name": "service.icd10_codes",
+    "value": null,
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": null
+  },
+  {
+    "name": "service.diagnosis_descriptions",
+    "value": null,
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": null
+  },
+  {
+    "name": "clinical.presenting_symptoms",
+    "value": null,
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": null
+  },
+  {
+    "name": "clinical.history",
+    "value": null,
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": null
+  },
+  {
+    "name": "clinical.medications",
+    "value": null,
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": null
+  },
+  {
+    "name": "clinical.assessments",
+    "value": null,
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": null
+  },
+  {
+    "name": "clinical.treatment_goals",
+    "value": null,
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": null
+  }
+]

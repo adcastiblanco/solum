@@ -1,0 +1,241 @@
+[
+  {
+    "name": "payer.name",
+    "value": null,
+    "confidence": 0,
+    "bbox": null,
+    "source_quote": null
+  },
+  {
+    "name": "payer.fax",
+    "value": null,
+    "confidence": 0,
+    "bbox": null,
+    "source_quote": null
+  },
+  {
+    "name": "payer.phone",
+    "value": null,
+    "confidence": 0,
+    "bbox": null,
+    "source_quote": null
+  },
+  {
+    "name": "request.date",
+    "value": "2/5/26",
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": "Date: 2/5/26"
+  },
+  {
+    "name": "member.last_name",
+    "value": "O'Brien",
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": "Pt: James O'Brien"
+  },
+  {
+    "name": "member.first_name",
+    "value": "James",
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": "Pt: James O'Brien"
+  },
+  {
+    "name": "member.middle_initial",
+    "value": null,
+    "confidence": 0,
+    "bbox": null,
+    "source_quote": null
+  },
+  {
+    "name": "member.dob",
+    "value": "12/17/83",
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": "DOB: 12/17/83"
+  },
+  {
+    "name": "member.gender",
+    "value": null,
+    "confidence": 0,
+    "bbox": null,
+    "source_quote": null
+  },
+  {
+    "name": "member.member_id",
+    "value": "ANT-XK7829014",
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": "ID#: ANT-XK7829014"
+  },
+  {
+    "name": "member.group_number",
+    "value": null,
+    "confidence": 0,
+    "bbox": null,
+    "source_quote": null
+  },
+  {
+    "name": "member.phone",
+    "value": null,
+    "confidence": 0,
+    "bbox": null,
+    "source_quote": null
+  },
+  {
+    "name": "member.address",
+    "value": null,
+    "confidence": 0,
+    "bbox": null,
+    "source_quote": null
+  },
+  {
+    "name": "requesting_provider.name",
+    "value": "Dr. R. Whitfield, MD",
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": "Dr. R. Whitfield, MD"
+  },
+  {
+    "name": "requesting_provider.npi",
+    "value": "1567890234",
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": "NPI: 1567890234"
+  },
+  {
+    "name": "requesting_provider.facility",
+    "value": null,
+    "confidence": 0,
+    "bbox": null,
+    "source_quote": null
+  },
+  {
+    "name": "requesting_provider.tax_id",
+    "value": null,
+    "confidence": 0,
+    "bbox": null,
+    "source_quote": null
+  },
+  {
+    "name": "requesting_provider.phone",
+    "value": null,
+    "confidence": 0,
+    "bbox": null,
+    "source_quote": null
+  },
+  {
+    "name": "requesting_provider.fax",
+    "value": null,
+    "confidence": 0,
+    "bbox": null,
+    "source_quote": null
+  },
+  {
+    "name": "requesting_provider.address",
+    "value": null,
+    "confidence": 0,
+    "bbox": null,
+    "source_quote": null
+  },
+  {
+    "name": "referring_provider.name",
+    "value": null,
+    "confidence": 0,
+    "bbox": null,
+    "source_quote": null
+  },
+  {
+    "name": "referring_provider.npi",
+    "value": null,
+    "confidence": 0,
+    "bbox": null,
+    "source_quote": null
+  },
+  {
+    "name": "referring_provider.phone",
+    "value": null,
+    "confidence": 0,
+    "bbox": null,
+    "source_quote": null
+  },
+  {
+    "name": "service.cpt_codes",
+    "value": null,
+    "confidence": 0,
+    "bbox": null,
+    "source_quote": null
+  },
+  {
+    "name": "service.icd10_codes",
+    "value": [
+      "F33.1"
+    ],
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": "MDD recurrent moderate (F33.1)"
+  },
+  {
+    "name": "service.diagnosis_descriptions",
+    "value": [
+      "MDD recurrent moderate (F33.1) - improving on current regimen"
+    ],
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": "Assessment: MDD recurrent moderate (F33.1) - improving on current regimen"
+  },
+  {
+    "name": "clinical.presenting_symptoms",
+    "value": "Pt presents for F/u. Reports mood \"somewhat better\" since starting Lexapro 10mg 3 wks ago. Still having trouble w/ motivation + energy. Sleep improved - now getting ~6 hrs (was 3-4). Appetite still poor. Denies SI/HI. No side effects from medication. Objective: Appearance: casually dressed, fair hygiene. Affect: constricted but reactive. Speech: normal rate/volume. Thought process: linear, goal-directed. PHQ-9: 14 (was 21 on 1/15)",
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": "Subjective: Pt presents for F/u. Reports mood \"somewhat better\" since starting Lexapro 10mg 3 wks ago. Still having trouble w/ motivation + energy. Sleep improved - now getting ~6 hrs (was 3-4). Appetite still poor. Denies SI/HI. No side effects from medication. Objective: - Appearance: casually dressed, fair hygiene - Affect: constricted but reactive - Speech: normal rate/volume - Thought process: linear, goal-directed - PHQ-9: 14 (was 21 on 1/15)"
+  },
+  {
+    "name": "clinical.history",
+    "value": "Assessment: MDD recurrent moderate (F33.1) - improving on current regimen",
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": "Assessment: MDD recurrent moderate (F33.1) - improving on current regimen"
+  },
+  {
+    "name": "clinical.medications",
+    "value": [
+      {
+        "medication": "Lexapro",
+        "dose": "10mg",
+        "frequency": "",
+        "prescriber": ""
+      }
+    ],
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": "since starting Lexapro 10mg 3 wks ago"
+  },
+  {
+    "name": "clinical.assessments",
+    "value": [
+      {
+        "tool": "PHQ-9",
+        "score": "14",
+        "date": "2/5/26"
+      },
+      {
+        "tool": "PHQ-9",
+        "score": "21",
+        "date": "1/15"
+      }
+    ],
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": "PHQ-9: 14 (was 21 on 1/15)"
+  },
+  {
+    "name": "clinical.treatment_goals",
+    "value": "Plan: - Continue Lexapro 10mg, consider increase to 20mg at next visit if partial response continues - Continue weekly therapy w/ Dr. Patel - F/u in 4 weeks - Labs: TSH, CBC if not done recently",
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": "Plan: - Continue Lexapro 10mg, consider increase to 20mg at next visit if partial response continues - Continue weekly therapy w/ Dr. Patel - F/u in 4 weeks - Labs: TSH, CBC if not done recently"
+  }
+]

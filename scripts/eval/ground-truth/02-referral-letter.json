@@ -1,0 +1,257 @@
+[
+  {
+    "name": "payer.name",
+    "value": "Aetna",
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": "Primary Insurance Aetna"
+  },
+  {
+    "name": "payer.fax",
+    "value": null,
+    "confidence": 0,
+    "bbox": null,
+    "source_quote": null
+  },
+  {
+    "name": "payer.phone",
+    "value": null,
+    "confidence": 0,
+    "bbox": null,
+    "source_quote": null
+  },
+  {
+    "name": "request.date",
+    "value": "01/15/2026",
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": "Date: 01/15/2026"
+  },
+  {
+    "name": "member.last_name",
+    "value": "Dominguez",
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": "Name Elena R. Dominguez"
+  },
+  {
+    "name": "member.first_name",
+    "value": "Elena",
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": "Name Elena R. Dominguez"
+  },
+  {
+    "name": "member.middle_initial",
+    "value": "R",
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": "Name Elena R. Dominguez"
+  },
+  {
+    "name": "member.dob",
+    "value": "07/22/1975",
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": "Date of Birth 07/22/1975"
+  },
+  {
+    "name": "member.gender",
+    "value": "Female",
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": "Gender Female"
+  },
+  {
+    "name": "member.member_id",
+    "value": "W903847261",
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": "Member ID W903847261"
+  },
+  {
+    "name": "member.group_number",
+    "value": "AET-55102-TX",
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": "Group Number AET-55102-TX"
+  },
+  {
+    "name": "member.phone",
+    "value": "(210) 555-0672",
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": "Phone (210) 555-0672"
+  },
+  {
+    "name": "member.address",
+    "value": "1423 Alamo Heights Dr, San Antonio, TX 78209",
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": "Address 1423 Alamo Heights Dr, San Antonio, TX 78209"
+  },
+  {
+    "name": "requesting_provider.name",
+    "value": "Susan Okafor",
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": "Dr. Susan Okafor, MD"
+  },
+  {
+    "name": "requesting_provider.npi",
+    "value": "1456789023",
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": "NPI: 1456789023"
+  },
+  {
+    "name": "requesting_provider.facility",
+    "value": "Valley Primary Care Partners",
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": "Valley Primary Care Partners"
+  },
+  {
+    "name": "requesting_provider.tax_id",
+    "value": null,
+    "confidence": 0,
+    "bbox": null,
+    "source_quote": null
+  },
+  {
+    "name": "requesting_provider.phone",
+    "value": "(210) 555-0233",
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": "Phone: (210) 555-0233"
+  },
+  {
+    "name": "requesting_provider.fax",
+    "value": "(210) 555-0234",
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": "Fax: (210) 555-0234"
+  },
+  {
+    "name": "requesting_provider.address",
+    "value": "2850 Guadalupe St, Suite 100, San Antonio, TX 78205",
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": "2850 Guadalupe St, Suite 100, San Antonio, TX 78205"
+  },
+  {
+    "name": "referring_provider.name",
+    "value": null,
+    "confidence": 0,
+    "bbox": null,
+    "source_quote": null
+  },
+  {
+    "name": "referring_provider.npi",
+    "value": null,
+    "confidence": 0,
+    "bbox": null,
+    "source_quote": null
+  },
+  {
+    "name": "referring_provider.phone",
+    "value": null,
+    "confidence": 0,
+    "bbox": null,
+    "source_quote": null
+  },
+  {
+    "name": "service.cpt_codes",
+    "value": null,
+    "confidence": 0,
+    "bbox": null,
+    "source_quote": null
+  },
+  {
+    "name": "service.icd10_codes",
+    "value": [
+      "F33.1",
+      "F43.10",
+      "E03.9"
+    ],
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": "Major Depressive Disorder, recurrent, moderate (F33.1)... Post-Traumatic Stress Disorder (F43.10)... Hypothyroidism (E03.9)"
+  },
+  {
+    "name": "service.diagnosis_descriptions",
+    "value": [
+      "Major Depressive Disorder, recurrent, moderate",
+      "Post-Traumatic Stress Disorder",
+      "Hypothyroidism"
+    ],
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": "Major Depressive Disorder, recurrent, moderate (F33.1)... Post-Traumatic Stress Disorder (F43.10)... Hypothyroidism (E03.9)"
+  },
+  {
+    "name": "clinical.presenting_symptoms",
+    "value": "Patient has been experiencing symptoms consistent with Major Depressive Disorder, recurrent, moderate for approximately 6 months. She also presents with symptoms suggestive of Post-Traumatic Stress Disorder following a motor vehicle accident in August 2025. PHQ-9 administered 01/10/2026: Score of 16 (moderately severe depression). PCL-5 administered 01/10/2026: Score of 42 (probable PTSD).",
+    "confidence": 0.95,
+    "bbox": null,
+    "source_quote": "Patient has been experiencing symptoms consistent with Major Depressive Disorder, recurrent, moderate (F33.1) for approximately 6 months. She also presents with symptoms suggestive of Post-Traumatic Stress Disorder (F43.10) following a motor vehicle accident in August 2025."
+  },
+  {
+    "name": "clinical.history",
+    "value": "Medical history: Hypothyroidism (E03.9), controlled on Levothyroxine 75mcg. No history of substance use disorder. No prior psychiatric hospitalizations. Family history positive for depression (mother) and anxiety (sister).",
+    "confidence": 0.95,
+    "bbox": null,
+    "source_quote": "Medical history: Hypothyroidism (E03.9), controlled on Levothyroxine 75mcg • No history of substance use disorder • No prior psychiatric hospitalizations • Family history positive for depression (mother) and anxiety (sister)"
+  },
+  {
+    "name": "clinical.medications",
+    "value": [
+      {
+        "medication": "Escitalopram",
+        "dose": "10mg",
+        "frequency": "daily",
+        "prescriber": ""
+      },
+      {
+        "medication": "Hydroxyzine",
+        "dose": "25mg",
+        "frequency": "PRN",
+        "prescriber": ""
+      },
+      {
+        "medication": "Levothyroxine",
+        "dose": "75mcg",
+        "frequency": "",
+        "prescriber": ""
+      }
+    ],
+    "confidence": 0.95,
+    "bbox": null,
+    "source_quote": "Current medications: Escitalopram 10mg daily, Hydroxyzine 25mg PRN... controlled on Levothyroxine 75mcg"
+  },
+  {
+    "name": "clinical.assessments",
+    "value": [
+      {
+        "tool": "PHQ-9",
+        "score": "16",
+        "date": "01/10/2026"
+      },
+      {
+        "tool": "PCL-5",
+        "score": "42",
+        "date": "01/10/2026"
+      }
+    ],
+    "confidence": 1,
+    "bbox": null,
+    "source_quote": "PHQ-9 administered 01/10/2026: Score of 16 (moderately severe depression) • PCL-5 administered 01/10/2026: Score of 42 (probable PTSD)"
+  },
+  {
+    "name": "clinical.treatment_goals",
+    "value": "Psychiatric evaluation and medication management. Individual psychotherapy (CBT/EMDR recommended). Frequency: Weekly x 12 weeks, then reassess.",
+    "confidence": 0.95,
+    "bbox": null,
+    "source_quote": "Psychiatric evaluation and medication management • Individual psychotherapy (CBT/EMDR recommended) • Frequency: Weekly x 12 weeks, then reassess"
+  }
+]
