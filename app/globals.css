@@ -1,0 +1,55 @@
+@import "tailwindcss";
+
+:root {
+  /* Brand — navy */
+  --navy: #1E3A5F;
+  --navy-light: #EAF0F7;
+  --navy-mid: #2D5380;
+
+  /* Neutrals */
+  --white: #FFFFFF;
+  --gray-50: #F8F8F7;
+  --gray-100: #F0EFED;
+  --gray-200: #E2E0DC;
+  --gray-400: #A8A49E;
+  --gray-600: #6B6763;
+  --gray-900: #1A1916;
+
+  /* Approved state */
+  --green-50: #EAF5F0;
+  --green-700: #155F3E;
+
+  /* Page canvas */
+  --canvas: #F0EEE9;
+
+  /* Typography */
+  --font-sans: var(--font-geist-sans), 'Geist', sans-serif;
+  --font-serif: var(--font-instrument-serif), 'Instrument Serif', serif;
+  --font-mono: var(--font-geist-mono), 'Geist Mono', monospace;
+
+  /* Radius */
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 14px;
+}
+
+@theme inline {
+  --color-canvas: var(--canvas);
+  --color-navy: var(--navy);
+  --color-navy-light: var(--navy-light);
+  --color-navy-mid: var(--navy-mid);
+  --color-green-50: var(--green-50);
+  --color-green-700: var(--green-700);
+  --font-sans: var(--font-sans);
+  --font-serif: var(--font-serif);
+  --font-mono: var(--font-mono);
+  --radius-sm: var(--r-sm);
+  --radius-md: var(--r-md);
+  --radius-lg: var(--r-lg);
+}
+
+body {
+  background: var(--canvas);
+  color: var(--gray-900);
+  font-family: var(--font-sans);
+}

@@ -1,0 +1,11 @@
+Issue 01 — Project bootstrap — DONE (2026-05-19)
+
+- Next.js 16 (App Router, TS, Tailwind v4, ESLint) scaffolded into repo root via tempdir + copy, preserving .git, .scratch/, docs/, supabase/, files/, afk-ralph.sh, CLAUDE.md, .env.local, .env.local.example, .gitignore.
+- Deps installed: @mistralai/mistralai, @supabase/supabase-js, @supabase/ssr, geist, react-pdf.
+- .env.local.example lists NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, MISTRAL_API_KEY. .env.local is gitignored.
+- supabase/migrations/0001_init.sql already in place with documents (incl. error_message), extractions, field_reviews, RLS policies, and the documents storage bucket + policies.
+- Design tokens (navy palette, neutrals, green-50/700, canvas, radii, font vars) wired into app/globals.css as CSS custom properties + Tailwind @theme inline mappings.
+- Fonts: Geist + Geist Mono via the geist npm package; Instrument Serif via next/font/google. CSS vars: --font-geist-sans, --font-geist-mono, --font-instrument-serif.
+- app/page.tsx renders a canvas-background landing page with the Solum Health title in Instrument Serif italic navy. npm run dev boots cleanly on :3000 (HTTP 200).
+
+Next: Issue 02.
