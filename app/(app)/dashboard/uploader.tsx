@@ -1,0 +1,105 @@
+"use client";
+
+import { useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
+
+export function Uploader() {
+  const router = useRouter();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [, startTransition] = useTransition();
+
+  async function handleFiles(files: FileList) {
+    setError(null);
+    setIsUploading(true);
+    const supabase = createClient();
+
+    const {
+      data: { user },
+      error: userErr,
+    } = await supabase.auth.getUser();
+
+    if (userErr || !user) {
+      setError("Not authenticated");
+      setIsUploading(false);
+      return;
+    }
+
+    try {
+      for (const file of Array.from(files)) {
+        const documentId = crypto.randomUUID();
+        const storagePath = `${user.id}/${documentId}-${file.name}`;
+
+        const insertRes = await supabase.from("documents").insert({
+          id: documentId,
+          user_id: user.id,
+          file_name: file.name,
+          storage_path: storagePath,
+          status: "pending",
+        });
+
+        if (insertRes.error) {
+          throw new Error(insertRes.error.message);
+        }
+
+        // Refresh the list eagerly so the row appears before upload finishes.
+        startTransition(() => router.refresh());
+
+        const uploadRes = await supabase.storage
+          .from("documents")
+          .upload(storagePath, file, {
+            contentType: file.type || "application/pdf",
+            upsert: false,
+          });
+
+        if (uploadRes.error) {
+          await supabase
+            .from("documents")
+            .update({
+              status: "error",
+              error_message: `Upload failed: ${uploadRes.error.message}`,
+            })
+            .eq("id", documentId);
+        }
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Upload failed");
+    } finally {
+      setIsUploading(false);
+      if (inputRef.current) inputRef.current.value = "";
+      startTransition(() => router.refresh());
+    }
+  }
+
+  return (
+    <div className="flex flex-col items-end gap-2">
+      <input
+        ref={inputRef}
+        type="file"
+        accept="application/pdf"
+        multiple
+        className="hidden"
+        onChange={(e) => {
+          if (e.target.files && e.target.files.length > 0) {
+            void handleFiles(e.target.files);
+          }
+        }}
+      />
+      <button
+        type="button"
+        disabled={isUploading}
+        onClick={() => inputRef.current?.click()}
+        className="rounded-[var(--r-sm)] bg-navy px-4 py-2 font-sans text-sm text-white hover:bg-navy-mid disabled:opacity-60"
+      >
+        {isUploading ? "Uploading…" : "Upload PDFs"}
+      </button>
+      {error && (
+        <span className="font-mono text-xs text-[var(--gray-600)]">
+          {error}
+        </span>
+      )}
+    </div>
+  );
+}

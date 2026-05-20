@@ -21,3 +21,14 @@ Issue 02 — Auth shell + empty dashboard — DONE (2026-05-19)
 - `npx next build` passes; the only warning is the Next 16 "middleware → proxy" deprecation notice (cosmetic for MVP).
 
 Next: Issue 03.
+
+Issue 03 — Upload + dashboard list — DONE (2026-05-19)
+
+- Dashboard page (app/(app)/dashboard/page.tsx) is now a server component that fetches the authenticated user's documents (RLS-scoped) and renders a header with the Uploader on the right and the document list below.
+- components inside the dashboard route: uploader.tsx (client) and document-list.tsx (server). Uploader uses a hidden <input type="file" accept="application/pdf" multiple/> behind a navy "Upload PDFs" button.
+- Upload flow per file: generate a UUID client-side, insert a documents row with status='pending' and storage_path={user_id}/{document_id}-{filename}, router.refresh() so the row appears immediately, then upload to the 'documents' Supabase Storage bucket. Failed uploads mark the row status='error' with error_message.
+- Document list renders filename (links to /review/{id}, which 404s for now), navy status badge (navy-light/navy for pending|processing|done, neutral border + hover-tooltip for error), and a formatted created_at timestamp.
+- Uploading the same filename twice yields two rows with distinct storage paths because the document UUID is embedded in the path.
+- `npx next build` passes (only the pre-existing middleware → proxy deprecation warning).
+
+Next: Issue 04.
