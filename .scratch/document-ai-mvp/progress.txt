@@ -32,3 +32,17 @@ Issue 03 — Upload + dashboard list — DONE (2026-05-19)
 - `npx next build` passes (only the pre-existing middleware → proxy deprecation warning).
 
 Next: Issue 04.
+
+Issue 04 — Mistral extraction + status polling — DONE (2026-05-19)
+
+- lib/types.ts now defines the clinical FIELD_LABELS map (snake_case → human label), FIELD_NAMES order, ARRAY_FIELDS set, and ExtractedField/BBox types shared by extractor + future review UI.
+- lib/mistral.ts implements MistralExtractor: builds a `{ value, confidence, bbox: { page, x, y, width, height } }` JSON schema per field (string vs string[] per ARRAY_FIELDS), calls client.ocr.process with model 'mistral-ocr-2505' + documentAnnotationFormat (json_schema) + documentAnnotationPrompt, parses the JSON annotation, and normalizes every field — including ones the model omitted — into ExtractedField[]. Errors are mapped to MistralExtractionError with kinds timeout|transport|schema|unknown so the API route can surface readable messages.
+- app/api/extract/route.ts (POST { documentId }) authenticates via SSR Supabase, sets status='processing'+clears error_message, signs a 10-minute storage URL, calls extractDocument, inserts a row in extractions with raw_mistral_response + extracted_fields, then flips status='done'. On any failure it writes status='error' with a user-facing error_message and 500s — the same code path is reused by the Retry button (future issue) since it just re-POSTs the documentId.
+- app/api/documents/route.ts (GET) returns the authenticated user's documents (RLS-scoped, newest first) for the poller.
+- hooks/useDocumentPolling.ts polls /api/documents every 2.5s while any doc is pending|processing, stops when none are; survives refresh because the effect re-evaluates whenever a doc's status changes. Exposes refresh() so the uploader can force-include a freshly-inserted row.
+- Dashboard restructured: page.tsx still server-renders the initial list, but rendering is delegated to app/(app)/dashboard/dashboard-client.tsx, a client component that owns polling state and passes refresh to <Uploader onChange={refresh}/>.
+- uploader.tsx now calls onChange() right after inserting the documents row (so the pending row appears immediately), then uploads to Storage, then fires POST /api/extract (fire-and-forget — the route flips status, polling picks it up). Storage upload failures still write status='error' inline.
+- MISTRAL_API_KEY is read inside lib/mistral.ts via process.env on the server only; never referenced under NEXT_PUBLIC_.
+- `npx next build` + `npx eslint` both pass cleanly.
+
+Next: Issue 05.

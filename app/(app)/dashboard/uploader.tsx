@@ -1,15 +1,28 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
-export function Uploader() {
-  const router = useRouter();
+type UploaderProps = {
+  onChange?: () => void | Promise<void>;
+};
+
+export function Uploader({ onChange }: UploaderProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [, startTransition] = useTransition();
+
+  async function triggerExtract(documentId: string) {
+    try {
+      await fetch("/api/extract", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ documentId }),
+      });
+    } catch {
+      // Extract API also flips status to error on failure; polling will surface it.
+    }
+  }
 
   async function handleFiles(files: FileList) {
     setError(null);
@@ -44,8 +57,8 @@ export function Uploader() {
           throw new Error(insertRes.error.message);
         }
 
-        // Refresh the list eagerly so the row appears before upload finishes.
-        startTransition(() => router.refresh());
+        // Surface the new row immediately so the user sees it in 'pending' state.
+        await onChange?.();
 
         const uploadRes = await supabase.storage
           .from("documents")
@@ -62,14 +75,19 @@ export function Uploader() {
               error_message: `Upload failed: ${uploadRes.error.message}`,
             })
             .eq("id", documentId);
+          await onChange?.();
+          continue;
         }
+
+        // Kick off extraction; don't await — polling will pick up status transitions.
+        void triggerExtract(documentId);
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Upload failed");
     } finally {
       setIsUploading(false);
       if (inputRef.current) inputRef.current.value = "";
-      startTransition(() => router.refresh());
+      await onChange?.();
     }
   }
 
