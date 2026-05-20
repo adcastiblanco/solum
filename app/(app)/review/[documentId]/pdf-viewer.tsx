@@ -1,0 +1,80 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { Document, Page, pdfjs } from "react-pdf";
+import "react-pdf/dist/Page/AnnotationLayer.css";
+import "react-pdf/dist/Page/TextLayer.css";
+
+pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+  "pdfjs-dist/build/pdf.worker.min.mjs",
+  import.meta.url,
+).toString();
+
+const DOCUMENT_OPTIONS = {
+  cMapUrl: "https://unpkg.com/pdfjs-dist@5.4.296/cmaps/",
+  cMapPacked: true,
+};
+
+export function PdfViewer({ url }: { url: string | null }) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [numPages, setNumPages] = useState(0);
+  const [width, setWidth] = useState<number>(0);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const el = containerRef.current;
+    const update = () => setWidth(el.clientWidth);
+    update();
+    const obs = new ResizeObserver(update);
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+
+  if (!url) {
+    return (
+      <div className="flex h-full items-center justify-center p-8 text-center font-sans text-sm text-[var(--gray-600)]">
+        PDF unavailable. The file may still be uploading or could not be loaded.
+      </div>
+    );
+  }
+
+  return (
+    <div
+      ref={containerRef}
+      className="h-full overflow-y-auto bg-[var(--gray-100)] p-4"
+    >
+      <Document
+        file={url}
+        options={DOCUMENT_OPTIONS}
+        onLoadSuccess={({ numPages }) => setNumPages(numPages)}
+        loading={
+          <div className="py-16 text-center font-sans text-sm text-[var(--gray-600)]">
+            Loading PDF…
+          </div>
+        }
+        error={
+          <div className="py-16 text-center font-sans text-sm text-[var(--gray-600)]">
+            Failed to load PDF.
+          </div>
+        }
+      >
+        {Array.from({ length: numPages }, (_, i) => (
+          <div
+            key={i}
+            className="mb-4 overflow-hidden rounded-[var(--r-md)] border border-[var(--gray-200)] bg-white shadow-sm"
+          >
+            <div className="border-b border-[var(--gray-100)] bg-[var(--gray-50)] px-3 py-1.5 font-mono text-[10px] uppercase tracking-wide text-[var(--gray-600)]">
+              Page {i + 1} of {numPages}
+            </div>
+            <Page
+              pageNumber={i + 1}
+              width={width > 16 ? width - 32 : undefined}
+              renderAnnotationLayer={false}
+              renderTextLayer={false}
+            />
+          </div>
+        ))}
+      </Document>
+    </div>
+  );
+}

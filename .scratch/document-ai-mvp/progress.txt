@@ -46,3 +46,14 @@ Issue 04 — Mistral extraction + status polling — DONE (2026-05-19)
 - `npx next build` + `npx eslint` both pass cleanly.
 
 Next: Issue 05.
+
+Issue 05 — Review screen: PDF viewer + form sidebar — DONE (2026-05-19)
+
+- New route app/(app)/review/[documentId]/page.tsx is a server component: fetches the document (RLS scoped, notFound() if missing/not-owned), the latest extraction row, and a 30-minute signed URL from the 'documents' Storage bucket. Normalizes extracted_fields against FIELD_NAMES so every schema field appears (missing ones get value=null) before handing to the client.
+- review-client.tsx owns the 60/40 split layout inside a --r-lg card on --canvas, with a Dashboard back-link, the file name in Instrument Serif italic navy, and a status tag. The PDF viewer is dynamically imported with ssr:false so react-pdf only runs on the client.
+- pdf-viewer.tsx wires pdfjs.GlobalWorkerOptions.workerSrc to `new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url)` (works through Turbopack), imports the AnnotationLayer/TextLayer CSS, and renders all pages stacked in a scroll container with a ResizeObserver-driven Page width so multi-page PDFs are fully reachable. cMapUrl pinned to the pdfjs-dist@5.4.296 unpkg path.
+- field-card.tsx renders the four-state visual treatment (Neutral/Hovered/Missing; Approved unused this slice): white+gray border by default, navy-light bg + navy border on hover, gray-tinted bg with italic "Not detected" placeholder for missing values. Label in Geist, snake_case field name tag in Geist Mono. Inline editable input for scalar fields; ARRAY_FIELDS get per-item inputs with an "+ add" affordance.
+- Edits are held in local React state only (no persistence yet — that's slice 07). Hover state is tracked in the client wrapper so slice 06 can drive the bbox overlay from the same `hovered` value. No emojis anywhere.
+- `npx next build` + `npx eslint` both pass cleanly.
+
+Next: Issue 06.
