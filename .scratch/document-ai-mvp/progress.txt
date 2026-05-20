@@ -57,3 +57,25 @@ Issue 05 — Review screen: PDF viewer + form sidebar — DONE (2026-05-19)
 - `npx next build` + `npx eslint` both pass cleanly.
 
 Next: Issue 06.
+
+Issue 06 — BBox highlight + confidence on hover — DONE (2026-05-19)
+
+- New pure-render module components/BBoxOverlay.tsx: given a normalized BBox + confidence, positions an absolutely-placed highlight (navy border, rgba(30,58,95,0.08) fill, --r-sm radius) and a confidence tag (navy bg, white Geist Mono text, top-right of the highlight). Coordinate math is just `${x*100}%` / `${y*100}%` / etc., so it stays correct at any PDF zoom level because the overlay's parent is the page wrapper which scales with the Page width.
+- pdf-viewer.tsx now accepts a `highlight: { bbox, confidence } | null` prop and exports the Highlight type. Each rendered page wrapper is registered into a `Map<pageNumber, HTMLDivElement>` ref; when `highlight` changes, an effect calls scrollIntoView() on the matching page so the viewer auto-jumps to off-page bboxes. The BBoxOverlay is rendered inside a `relative` wrapper around the matching <Page>, so it positions inside the actual rendered page bounds.
+- review-client.tsx derives `highlight` via useMemo from the hovered field name + the fields array (passes confidence + bbox through). Missing fields (bbox === null) yield highlight=null, so hovering them shows nothing — matches the acceptance criterion.
+- Confidence is rounded to whole percent (Math.round(c*100) → "94%") and only appears when the field has a numeric confidence; absence hides the tag entirely.
+- `npx next build` passes with only the pre-existing middleware → proxy deprecation warning.
+
+Next: Issue 07.
+
+Issue 07 — Field approval + edit tracking — DONE (2026-05-19)
+
+- New deep module lib/field-reviews.ts exports approveField(supabase, { extractionId, fieldName, originalValue, finalValue, confidence, bbox }). Lazy-creates a field_reviews row on first approval; on subsequent calls updates final_value, monotonically advances was_edited (true if existing.was_edited OR final !== original_value), and never overwrites original_value/confidence. Values are JSON-encoded via serializeValue/deserializeValue so arrays and scalars round-trip through the text columns uniformly.
+- New API route app/api/review/route.ts (POST) authenticates via SSR Supabase, validates extractionId+fieldName, and delegates to approveField. RLS on field_reviews enforces per-user isolation through the documents→extractions join.
+- field-card.tsx grew a 28×28 circular CheckButton with three visual states (default gray outline, hover green outline, approved filled green-700) plus a checkmark SVG. Approved cards switch to green-50 bg + green-700 border. The button is disabled for missing fields unless the field is already approved.
+- review-client.tsx now owns approved/approving maps. handleApprove POSTs to /api/review with the snapshotted originalValue + current finalValue + confidence + bbox; on success flips the card to approved. Editing an approved value drops it back to neutral so the user must re-click — and the next approval picks up was_edited=true via the service.
+- Review page server-component now also reads field_reviews for the latest extraction, deserializes final_value, and seeds the client's approved map + values so refresh restores prior approvals. Idempotency comes from the (extraction_id, field_name) unique index plus the monotonic was_edited rule.
+- Green only appears on approved field cards and the check button; the Accuracy view stays navy-only (deferred to slice 09).
+- `npx next build` passes (only the pre-existing middleware → proxy deprecation warning).
+
+Next: Issue 08.

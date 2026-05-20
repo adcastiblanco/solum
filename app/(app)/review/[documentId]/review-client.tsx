@@ -16,6 +16,11 @@ const PdfViewer = dynamic(() => import("./pdf-viewer").then((m) => m.PdfViewer),
   ),
 });
 
+export type InitialReview = {
+  finalValue: FieldValue;
+  approved: boolean;
+};
+
 type FieldState = {
   name: string;
   value: FieldValue;
@@ -23,26 +28,89 @@ type FieldState = {
 
 export function ReviewClient({
   documentId,
+  extractionId,
   fileName,
   status,
   pdfUrl,
   fields,
+  initialReviews,
 }: {
   documentId: string;
+  extractionId: string | null;
   fileName: string;
   status: string;
   pdfUrl: string | null;
   fields: ExtractedField[];
+  initialReviews: Record<string, InitialReview>;
 }) {
   const [values, setValues] = useState<FieldState[]>(
-    fields.map((f) => ({ name: f.name, value: f.value })),
+    fields.map((f) => {
+      const review = initialReviews[f.name];
+      return {
+        name: f.name,
+        value: review?.approved ? review.finalValue : f.value,
+      };
+    }),
   );
+  const [approved, setApproved] = useState<Record<string, boolean>>(() => {
+    const init: Record<string, boolean> = {};
+    for (const [name, r] of Object.entries(initialReviews)) {
+      if (r.approved) init[name] = true;
+    }
+    return init;
+  });
+  const [approving, setApproving] = useState<Record<string, boolean>>({});
   const [hovered, setHovered] = useState<string | null>(null);
 
   const setFieldValue = (name: string, value: FieldValue) => {
     setValues((prev) =>
       prev.map((s) => (s.name === name ? { ...s, value } : s)),
     );
+    // Editing a value un-marks approval until user re-confirms.
+    setApproved((prev) => {
+      if (!prev[name]) return prev;
+      const next = { ...prev };
+      delete next[name];
+      return next;
+    });
+  };
+
+  const handleApprove = async (name: string) => {
+    if (!extractionId) return;
+    const field = fields.find((f) => f.name === name);
+    if (!field) return;
+    const current = values.find((s) => s.name === name);
+    if (!current) return;
+
+    setApproving((prev) => ({ ...prev, [name]: true }));
+    try {
+      const res = await fetch("/api/review", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          extractionId,
+          fieldName: name,
+          originalValue: field.value,
+          finalValue: current.value,
+          confidence: field.confidence,
+          bbox: field.bbox,
+        }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        console.error("Approve failed:", body);
+        return;
+      }
+      setApproved((prev) => ({ ...prev, [name]: true }));
+    } catch (err) {
+      console.error("Approve failed:", err);
+    } finally {
+      setApproving((prev) => {
+        const next = { ...prev };
+        delete next[name];
+        return next;
+      });
+    }
   };
 
   const highlight: Highlight | null = useMemo(() => {
@@ -88,7 +156,7 @@ export function ReviewClient({
             </h2>
             <p className="font-mono text-[10px] uppercase tracking-wide text-[var(--gray-600)]">
               {isReady
-                ? "Edit any value inline"
+                ? "Edit any value inline, then approve"
                 : "Extraction not complete yet"}
             </p>
           </div>
@@ -102,6 +170,9 @@ export function ReviewClient({
                   onChange={(next) => setFieldValue(s.name, next)}
                   isHovered={hovered === s.name}
                   onHoverChange={(h) => setHovered(h ? s.name : null)}
+                  isApproved={!!approved[s.name]}
+                  isApproving={!!approving[s.name]}
+                  onApprove={() => handleApprove(s.name)}
                 />
               ))}
             </div>

@@ -10,12 +10,18 @@ export function FieldCard({
   onChange,
   onHoverChange,
   isHovered,
+  isApproved,
+  onApprove,
+  isApproving,
 }: {
   name: string;
   value: FieldValue;
   onChange: (next: FieldValue) => void;
   onHoverChange?: (hovered: boolean) => void;
   isHovered?: boolean;
+  isApproved?: boolean;
+  onApprove?: () => void;
+  isApproving?: boolean;
 }) {
   const label = FIELD_LABELS[name] ?? name;
   const isArray = ARRAY_FIELDS.has(name);
@@ -25,11 +31,13 @@ export function FieldCard({
 
   const cardClasses = [
     "rounded-[var(--r-md)] border px-4 py-3 transition-colors",
-    isHovered
-      ? "border-navy bg-navy-light"
-      : isMissing
-        ? "border-[var(--gray-200)] bg-[var(--gray-50)]"
-        : "border-[var(--gray-200)] bg-white",
+    isApproved
+      ? "border-[var(--green-700)] bg-[var(--green-50)]"
+      : isHovered
+        ? "border-navy bg-navy-light"
+        : isMissing
+          ? "border-[var(--gray-200)] bg-[var(--gray-50)]"
+          : "border-[var(--gray-200)] bg-white",
   ].join(" ");
 
   return (
@@ -38,13 +46,21 @@ export function FieldCard({
       onMouseEnter={() => onHoverChange?.(true)}
       onMouseLeave={() => onHoverChange?.(false)}
     >
-      <div className="mb-1.5 flex items-center justify-between">
+      <div className="mb-1.5 flex items-center justify-between gap-2">
         <span className="font-sans text-xs text-[var(--gray-600)]">
           {label}
         </span>
-        <span className="font-mono text-[10px] uppercase tracking-wide text-[var(--gray-400)]">
-          {name}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="font-mono text-[10px] uppercase tracking-wide text-[var(--gray-400)]">
+            {name}
+          </span>
+          <CheckButton
+            isApproved={!!isApproved}
+            isApproving={!!isApproving}
+            disabled={isMissing && !isApproved}
+            onClick={() => onApprove?.()}
+          />
+        </div>
       </div>
 
       {isArray ? (
@@ -69,6 +85,65 @@ export function FieldCard({
         />
       )}
     </div>
+  );
+}
+
+function CheckButton({
+  isApproved,
+  isApproving,
+  disabled,
+  onClick,
+}: {
+  isApproved: boolean;
+  isApproving: boolean;
+  disabled: boolean;
+  onClick: () => void;
+}) {
+  const base =
+    "group inline-flex h-7 w-7 items-center justify-center rounded-full border transition-colors disabled:cursor-not-allowed disabled:opacity-50";
+
+  if (isApproved) {
+    return (
+      <button
+        type="button"
+        aria-label="Approved"
+        onClick={onClick}
+        disabled={isApproving}
+        className={`${base} border-[var(--green-700)] bg-[var(--green-700)] text-white`}
+      >
+        <CheckIcon />
+      </button>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      aria-label="Approve"
+      onClick={onClick}
+      disabled={disabled || isApproving}
+      className={`${base} border-[var(--gray-200)] bg-white text-[var(--gray-400)] hover:border-[var(--green-700)] hover:text-[var(--green-700)]`}
+    >
+      <CheckIcon />
+    </button>
+  );
+}
+
+function CheckIcon() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <polyline points="20 6 9 17 4 12" />
+    </svg>
   );
 }
 

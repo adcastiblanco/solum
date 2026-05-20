@@ -1,7 +1,8 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { FIELD_NAMES, type ExtractedField } from "@/lib/types";
-import { ReviewClient } from "./review-client";
+import { deserializeValue, type FieldValue } from "@/lib/field-reviews";
+import { ReviewClient, type InitialReview } from "./review-client";
 
 export const dynamic = "force-dynamic";
 
@@ -47,13 +48,30 @@ export default async function ReviewPage({
       },
   );
 
+  const initialReviews: Record<string, InitialReview> = {};
+  if (extraction?.id) {
+    const { data: reviews } = await supabase
+      .from("field_reviews")
+      .select("field_name, final_value, approved")
+      .eq("extraction_id", extraction.id);
+    for (const r of reviews ?? []) {
+      if (!r.approved) continue;
+      initialReviews[r.field_name] = {
+        finalValue: deserializeValue(r.final_value) as FieldValue,
+        approved: true,
+      };
+    }
+  }
+
   return (
     <ReviewClient
       documentId={doc.id}
+      extractionId={extraction?.id ?? null}
       fileName={doc.file_name}
       status={doc.status}
       pdfUrl={pdfUrl}
       fields={fields}
+      initialReviews={initialReviews}
     />
   );
 }
