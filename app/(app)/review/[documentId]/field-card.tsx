@@ -30,14 +30,14 @@ export function FieldCard({
     (Array.isArray(value) ? value.length === 0 : value.trim() === "");
 
   const cardClasses = [
-    "rounded-[var(--r-md)] border px-4 py-3 transition-colors",
+    "rounded-[var(--r-md)] px-4 py-3 transition-colors",
     isApproved
-      ? "border-[var(--green-700)] bg-[var(--green-50)]"
+      ? "border-2 border-[var(--green-700)] bg-[var(--green-50)]"
       : isHovered
-        ? "border-navy bg-navy-light"
+        ? "border-2 border-navy bg-navy-light"
         : isMissing
-          ? "border-[var(--gray-200)] bg-[var(--gray-50)]"
-          : "border-[var(--gray-200)] bg-white",
+          ? "border-2 border-[var(--gray-200)] bg-[var(--gray-50)]"
+          : "border-2 border-[var(--gray-200)] bg-white",
   ].join(" ");
 
   return (
@@ -51,6 +51,11 @@ export function FieldCard({
           {label}
         </span>
         <div className="flex items-center gap-2">
+          {isApproved && (
+            <span className="rounded-[var(--r-sm)] bg-[var(--green-700)] px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wide text-white">
+              Approved
+            </span>
+          )}
           <span className="font-mono text-[10px] uppercase tracking-wide text-[var(--gray-400)]">
             {name}
           </span>

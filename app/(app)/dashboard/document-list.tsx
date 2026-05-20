@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 export type DocumentRow = {
@@ -93,6 +93,7 @@ export function DocumentList({
   documents: DocumentRow[];
   onRetry: () => void;
 }) {
+  const router = useRouter();
   if (documents.length === 0) {
     return (
       <div className="rounded-[var(--r-lg)] border border-dashed border-[var(--gray-200)] bg-white px-8 py-16 text-center">
@@ -123,35 +124,40 @@ export function DocumentList({
           </tr>
         </thead>
         <tbody>
-          {documents.map((doc) => (
-            <tr
-              key={doc.id}
-              className="border-t border-[var(--gray-100)] hover:bg-[var(--gray-50)]"
-            >
-              <td className="px-4 py-3">
-                <Link
-                  href={`/review/${doc.id}`}
-                  className="font-sans text-sm text-navy hover:underline"
-                >
+          {documents.map((doc) => {
+            const clickable = doc.status === "done";
+            return (
+              <tr
+                key={doc.id}
+                onClick={() => {
+                  if (clickable) router.push(`/review/${doc.id}`);
+                }}
+                className={`border-t border-[var(--gray-100)] transition-colors ${
+                  clickable
+                    ? "cursor-pointer hover:bg-navy-light"
+                    : "hover:bg-[var(--gray-50)]"
+                }`}
+              >
+                <td className="px-4 py-3 font-sans text-sm text-navy">
                   {doc.file_name}
-                </Link>
-              </td>
-              <td className="px-4 py-3">
-                <div className="flex items-center gap-2">
-                  <StatusBadge
-                    status={doc.status}
-                    errorMessage={doc.error_message}
-                  />
-                  {doc.status === "error" && (
-                    <RetryButton documentId={doc.id} onRetry={onRetry} />
-                  )}
-                </div>
-              </td>
-              <td className="px-4 py-3 font-mono text-xs text-[var(--gray-600)]">
-                {formatTimestamp(doc.created_at)}
-              </td>
-            </tr>
-          ))}
+                </td>
+                <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                  <div className="flex items-center gap-2">
+                    <StatusBadge
+                      status={doc.status}
+                      errorMessage={doc.error_message}
+                    />
+                    {doc.status === "error" && (
+                      <RetryButton documentId={doc.id} onRetry={onRetry} />
+                    )}
+                  </div>
+                </td>
+                <td className="px-4 py-3 font-mono text-xs text-[var(--gray-600)]">
+                  {formatTimestamp(doc.created_at)}
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>

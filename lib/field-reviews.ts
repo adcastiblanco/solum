@@ -67,7 +67,11 @@ export async function approveField(
   if (selectErr) throw selectErr;
 
   if (!existing) {
-    const wasEdited = serializedFinal !== serializedOriginal;
+    // was_edited only counts as a correction when there was an extracted value
+    // to correct in the first place. Filling in a missing field (original null)
+    // is a "fill-in", not a correction, and should NOT count against accuracy.
+    const wasEdited =
+      serializedOriginal !== null && serializedFinal !== serializedOriginal;
     const { data: inserted, error: insertErr } = await supabase
       .from("field_reviews")
       .insert({
@@ -89,10 +93,12 @@ export async function approveField(
     return inserted as FieldReviewRow;
   }
 
-  // Existing row: monotonically advance was_edited; never overwrite the
-  // original_value or confidence (they're a snapshot from extraction time).
+  // Existing row: monotonically advance was_edited, but only when the original
+  // value was non-null (filling in a missing field doesn't count as editing).
   const wasEdited =
-    existing.was_edited || serializedFinal !== existing.original_value;
+    existing.was_edited ||
+    (existing.original_value !== null &&
+      serializedFinal !== existing.original_value);
 
   const { data: updated, error: updateErr } = await supabase
     .from("field_reviews")

@@ -44,13 +44,31 @@ export function PdfViewer({
     return () => obs.disconnect();
   }, []);
 
-  // Scroll to the highlighted page when it changes.
+  // Only scroll to the highlighted page if the bbox isn't already visible
+  // in the current scroll position. Otherwise hover on any field would yank
+  // the viewport back to the top of the page.
   useEffect(() => {
-    if (!highlight) return;
+    if (!highlight || !containerRef.current) return;
     const target = pageRefs.current.get(highlight.bbox.page);
-    if (target) {
-      target.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
+    if (!target) return;
+    const containerRect = containerRef.current.getBoundingClientRect();
+    const targetRect = target.getBoundingClientRect();
+    const bboxTopInPage = highlight.bbox.y * targetRect.height;
+    const bboxBottomInPage = bboxTopInPage + highlight.bbox.height * targetRect.height;
+    const bboxTopAbs = targetRect.top + bboxTopInPage;
+    const bboxBottomAbs = targetRect.top + bboxBottomInPage;
+    const isVisible =
+      bboxTopAbs >= containerRect.top &&
+      bboxBottomAbs <= containerRect.bottom;
+    if (isVisible) return;
+    // Scroll the bbox into view without slamming to the page top.
+    const containerScrollTop = containerRef.current.scrollTop;
+    const desiredOffsetFromTop = containerRect.height * 0.25;
+    const delta = bboxTopAbs - containerRect.top - desiredOffsetFromTop;
+    containerRef.current.scrollTo({
+      top: containerScrollTop + delta,
+      behavior: "smooth",
+    });
   }, [highlight]);
 
   if (!url) {

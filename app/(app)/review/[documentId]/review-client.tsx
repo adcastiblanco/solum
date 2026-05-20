@@ -122,6 +122,33 @@ export function ReviewClient({
 
   const isReady = status === "done";
 
+  const unapprovedFields = useMemo(
+    () =>
+      values.filter((s) => {
+        if (approved[s.name]) return false;
+        const v = s.value;
+        if (v == null) return false;
+        if (Array.isArray(v)) return v.some((x) => x.trim().length > 0);
+        return v.trim().length > 0;
+      }),
+    [values, approved],
+  );
+
+  const [bulkApproving, setBulkApproving] = useState(false);
+
+  const handleApproveAll = async () => {
+    if (!extractionId || bulkApproving) return;
+    setBulkApproving(true);
+    try {
+      for (const s of unapprovedFields) {
+        // eslint-disable-next-line no-await-in-loop
+        await handleApprove(s.name);
+      }
+    } finally {
+      setBulkApproving(false);
+    }
+  };
+
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-4 px-6 py-6">
       <header className="flex items-center justify-between">
@@ -136,9 +163,28 @@ export function ReviewClient({
             {fileName}
           </h1>
         </div>
-        <span className="font-mono text-xs uppercase tracking-wide text-[var(--gray-600)]">
-          {status}
-        </span>
+        <div className="flex items-center gap-3">
+          <span className="font-mono text-xs uppercase tracking-wide text-[var(--gray-600)]">
+            {Object.keys(approved).length} / {fields.length} approved
+          </span>
+          <button
+            type="button"
+            onClick={handleApproveAll}
+            disabled={
+              !isReady ||
+              !extractionId ||
+              bulkApproving ||
+              unapprovedFields.length === 0
+            }
+            className="inline-flex items-center rounded-[var(--r-sm)] bg-navy px-3 py-1.5 font-mono text-xs uppercase tracking-wide text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {bulkApproving
+              ? "Approving…"
+              : unapprovedFields.length === 0
+                ? "All approved"
+                : `Approve all (${unapprovedFields.length})`}
+          </button>
+        </div>
       </header>
 
       <div
