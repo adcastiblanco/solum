@@ -12,7 +12,7 @@ Scaffold the Next.js 14 (App Router, TypeScript, Tailwind) project, install requ
 
 ## Acceptance criteria
 
-- [ ] `npx create-next-app@latest` has been run with `--typescript --tailwind --app` at the repo root, files committed
+- [ ] Next.js 14 scaffolded **into the current repo root** (not a subdirectory). Use a non-interactive invocation, e.g. `npx create-next-app@latest . --typescript --tailwind --app --eslint --use-npm --no-src-dir --import-alias "@/*" --yes`. If `create-next-app` complains the directory is not empty, scaffold into a tempdir and copy files in, preserving `.git/`, `.scratch/`, `docs/`, `supabase/`, `files/`, `afk-ralph.sh`, `CLAUDE.md`, `.env.local`, `.env.local.example`, `.gitignore`.
 - [ ] Installed: `@mistralai/mistralai`, `@supabase/supabase-js`, `@supabase/ssr`, `geist`, `react-pdf`
 - [ ] `.env.local.example` lists `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `MISTRAL_API_KEY`
 - [ ] `.env.local` is gitignored
