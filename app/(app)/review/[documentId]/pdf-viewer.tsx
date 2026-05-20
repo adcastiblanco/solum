@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
+import { BBoxOverlay } from "@/components/BBoxOverlay";
+import type { BBox } from "@/lib/types";
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   "pdfjs-dist/build/pdf.worker.min.mjs",
@@ -15,8 +17,20 @@ const DOCUMENT_OPTIONS = {
   cMapPacked: true,
 };
 
-export function PdfViewer({ url }: { url: string | null }) {
+export type Highlight = {
+  bbox: BBox;
+  confidence: number | null;
+};
+
+export function PdfViewer({
+  url,
+  highlight,
+}: {
+  url: string | null;
+  highlight: Highlight | null;
+}) {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const pageRefs = useRef<Map<number, HTMLDivElement | null>>(new Map());
   const [numPages, setNumPages] = useState(0);
   const [width, setWidth] = useState<number>(0);
 
@@ -29,6 +43,15 @@ export function PdfViewer({ url }: { url: string | null }) {
     obs.observe(el);
     return () => obs.disconnect();
   }, []);
+
+  // Scroll to the highlighted page when it changes.
+  useEffect(() => {
+    if (!highlight) return;
+    const target = pageRefs.current.get(highlight.bbox.page);
+    if (target) {
+      target.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [highlight]);
 
   if (!url) {
     return (
@@ -58,22 +81,37 @@ export function PdfViewer({ url }: { url: string | null }) {
           </div>
         }
       >
-        {Array.from({ length: numPages }, (_, i) => (
-          <div
-            key={i}
-            className="mb-4 overflow-hidden rounded-[var(--r-md)] border border-[var(--gray-200)] bg-white shadow-sm"
-          >
-            <div className="border-b border-[var(--gray-100)] bg-[var(--gray-50)] px-3 py-1.5 font-mono text-[10px] uppercase tracking-wide text-[var(--gray-600)]">
-              Page {i + 1} of {numPages}
+        {Array.from({ length: numPages }, (_, i) => {
+          const pageNumber = i + 1;
+          const isHighlighted = highlight?.bbox.page === pageNumber;
+          return (
+            <div
+              key={pageNumber}
+              ref={(el) => {
+                pageRefs.current.set(pageNumber, el);
+              }}
+              className="mb-4 overflow-hidden rounded-[var(--r-md)] border border-[var(--gray-200)] bg-white shadow-sm"
+            >
+              <div className="border-b border-[var(--gray-100)] bg-[var(--gray-50)] px-3 py-1.5 font-mono text-[10px] uppercase tracking-wide text-[var(--gray-600)]">
+                Page {pageNumber} of {numPages}
+              </div>
+              <div className="relative">
+                <Page
+                  pageNumber={pageNumber}
+                  width={width > 16 ? width - 32 : undefined}
+                  renderAnnotationLayer={false}
+                  renderTextLayer={false}
+                />
+                {isHighlighted && highlight && (
+                  <BBoxOverlay
+                    bbox={highlight.bbox}
+                    confidence={highlight.confidence}
+                  />
+                )}
+              </div>
             </div>
-            <Page
-              pageNumber={i + 1}
-              width={width > 16 ? width - 32 : undefined}
-              renderAnnotationLayer={false}
-              renderTextLayer={false}
-            />
-          </div>
-        ))}
+          );
+        })}
       </Document>
     </div>
   );

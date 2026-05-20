@@ -2,9 +2,10 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { ExtractedField } from "@/lib/types";
 import { FieldCard, type FieldValue } from "./field-card";
+import type { Highlight } from "./pdf-viewer";
 
 const PdfViewer = dynamic(() => import("./pdf-viewer").then((m) => m.PdfViewer), {
   ssr: false,
@@ -44,6 +45,13 @@ export function ReviewClient({
     );
   };
 
+  const highlight: Highlight | null = useMemo(() => {
+    if (!hovered) return null;
+    const field = fields.find((f) => f.name === hovered);
+    if (!field || !field.bbox) return null;
+    return { bbox: field.bbox, confidence: field.confidence };
+  }, [hovered, fields]);
+
   const isReady = status === "done";
 
   return (
@@ -70,7 +78,7 @@ export function ReviewClient({
         style={{ gridTemplateColumns: "60fr 40fr", minHeight: "70vh" }}
       >
         <section className="overflow-hidden rounded-[var(--r-lg)] border border-[var(--gray-200)] bg-white">
-          <PdfViewer url={pdfUrl} />
+          <PdfViewer url={pdfUrl} highlight={highlight} />
         </section>
 
         <section className="flex flex-col overflow-hidden rounded-[var(--r-lg)] border border-[var(--gray-200)] bg-white">
