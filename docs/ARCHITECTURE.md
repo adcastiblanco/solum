@@ -368,7 +368,7 @@ scripts/
     ├── ground-truth/         Hand-curatable JSON labels (5 docs)
     └── results/              Timestamped markdown reports
 
-supabase/migrations/          0001 init, 0002 column rename
+supabase/migrations/          0001 init, 0002 rename, 0003 phase
 files/                        02-06 sample inputs (07 = target form)
 docs/                         this file + loom script + design notes
 ```
