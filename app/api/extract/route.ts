@@ -79,12 +79,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ extractionId: extraction.id, fields });
   } catch (err) {
-    const message =
-      err instanceof MistralExtractionError
-        ? err.message
-        : err instanceof Error
-          ? err.message
-          : "Extraction failed";
+    const message = toUserMessage(err);
 
     await supabase
       .from("documents")
@@ -93,4 +88,20 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ error: message }, { status: 500 });
   }
+}
+
+function toUserMessage(err: unknown): string {
+  if (err instanceof MistralExtractionError) {
+    switch (err.kind) {
+      case "timeout":
+        return "Mistral OCR timed out";
+      case "schema":
+        return "Unsupported document format";
+      case "transport":
+        return "Document could not be read";
+      default:
+        return "Extraction failed — try again";
+    }
+  }
+  return "Extraction failed — try again";
 }

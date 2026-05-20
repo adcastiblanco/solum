@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { useState } from "react";
 
 export type DocumentRow = {
   id: string;
@@ -21,7 +24,7 @@ function StatusBadge({
   if (status === "error") {
     return (
       <span
-        className={`${base} border border-[var(--gray-200)] bg-white text-[var(--gray-900)]`}
+        className={`${base} border border-[var(--gray-200)] bg-white text-navy cursor-help`}
         title={errorMessage ?? "Extraction failed"}
       >
         Error
@@ -31,6 +34,44 @@ function StatusBadge({
 
   return (
     <span className={`${base} bg-navy-light text-navy`}>{status}</span>
+  );
+}
+
+function RetryButton({
+  documentId,
+  onRetry,
+}: {
+  documentId: string;
+  onRetry: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+
+  async function handleClick() {
+    if (busy) return;
+    setBusy(true);
+    try {
+      await fetch("/api/extract", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ documentId }),
+      });
+    } catch {
+      // surfaces back through the documents row on next poll
+    } finally {
+      onRetry();
+      setBusy(false);
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={handleClick}
+      disabled={busy}
+      className="inline-flex items-center rounded-[var(--r-sm)] border border-[var(--gray-200)] bg-white px-2 py-0.5 font-mono text-xs uppercase tracking-wide text-navy hover:bg-navy-light disabled:opacity-50"
+    >
+      {busy ? "Retrying" : "Retry"}
+    </button>
   );
 }
 
@@ -45,7 +86,13 @@ function formatTimestamp(iso: string): string {
   });
 }
 
-export function DocumentList({ documents }: { documents: DocumentRow[] }) {
+export function DocumentList({
+  documents,
+  onRetry,
+}: {
+  documents: DocumentRow[];
+  onRetry: () => void;
+}) {
   if (documents.length === 0) {
     return (
       <div className="rounded-[var(--r-lg)] border border-dashed border-[var(--gray-200)] bg-white px-8 py-16 text-center">
@@ -90,10 +137,15 @@ export function DocumentList({ documents }: { documents: DocumentRow[] }) {
                 </Link>
               </td>
               <td className="px-4 py-3">
-                <StatusBadge
-                  status={doc.status}
-                  errorMessage={doc.error_message}
-                />
+                <div className="flex items-center gap-2">
+                  <StatusBadge
+                    status={doc.status}
+                    errorMessage={doc.error_message}
+                  />
+                  {doc.status === "error" && (
+                    <RetryButton documentId={doc.id} onRetry={onRetry} />
+                  )}
+                </div>
               </td>
               <td className="px-4 py-3 font-mono text-xs text-[var(--gray-600)]">
                 {formatTimestamp(doc.created_at)}

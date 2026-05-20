@@ -19,7 +19,7 @@ export function DashboardClient({ initial }: { initial: DocumentRow[] }) {
         <Uploader onChange={refresh} />
       </header>
 
-      <DocumentList documents={documents} />
+      <DocumentList documents={documents} onRetry={refresh} />
     </>
   );
 }

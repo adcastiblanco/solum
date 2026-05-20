@@ -79,3 +79,14 @@ Issue 07 — Field approval + edit tracking — DONE (2026-05-19)
 - `npx next build` passes (only the pre-existing middleware → proxy deprecation warning).
 
 Next: Issue 08.
+
+Issue 08 — Failure handling + Retry — DONE (2026-05-19)
+
+- app/api/extract/route.ts now maps catches into short user-facing strings via a `toUserMessage` helper: `MistralExtractionError.kind` → "Mistral OCR timed out" (timeout), "Unsupported document format" (schema), "Document could not be read" (transport); everything else → "Extraction failed — try again". The mapped string is written verbatim into documents.error_message and returned in the 500 body. Successful runs continue to clear error_message back to null.
+- document-list.tsx converted to a client component so the row can host a Retry button. The Error badge now uses navy text on a gray-bordered white chip with a native `title` tooltip showing the stored error_message (or a generic fallback). The badge is `cursor-help` to advertise the tooltip.
+- New RetryButton (also in document-list.tsx) POSTs `/api/extract` with the failed documentId, shows a "Retrying" label while in-flight, and calls the dashboard's `refresh()` after the request settles so the row picks up the new status (processing → done|error) via the same polling path used by initial uploads.
+- DashboardClient passes `onRetry={refresh}` into <DocumentList/>; the poller already runs whenever any doc is processing, so retries re-enter the normal state machine with no extra wiring.
+- No automatic server-side retry — retry is strictly user-initiated through the badge button. Same code path as the initial extraction, so error → success → green list state, or error → error with an updated message, both work.
+- `npx next build` passes (only the pre-existing middleware → proxy deprecation warning).
+
+Next: Issue 09.
