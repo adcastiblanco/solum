@@ -78,3 +78,21 @@ button:not(:disabled):active,
 @keyframes solum-spin {
   to { transform: rotate(360deg); }
 }
+
+/* Soft "breathing" pulse for the currently-running phase quadrant in the
+   dashboard's PhaseRing. Active quadrant fades between full and ~55% opacity
+   so the user can see at a glance which phase is in flight. */
+@keyframes phase-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.5; }
+}
+.phase-quadrant {
+  transition: fill 600ms ease;
+}
+.phase-quadrant.is-active {
+  animation: phase-pulse 1.4s ease-in-out infinite;
+}
+
+/* Hide scrollbars but keep the content scrollable (PDF viewer, side panels). */
+.scrollbar-hide { scrollbar-width: none; -ms-overflow-style: none; }
+.scrollbar-hide::-webkit-scrollbar { width: 0; height: 0; display: none; }

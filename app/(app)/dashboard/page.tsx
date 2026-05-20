@@ -8,7 +8,7 @@ export default async function DashboardPage() {
   const supabase = await createClient();
   const { data } = await supabase
     .from("documents")
-    .select("id, file_name, status, error_message, created_at")
+    .select("id, file_name, status, phase, error_message, created_at")
     .order("created_at", { ascending: false });
 
   const documents = (data ?? []) as DocumentRow[];

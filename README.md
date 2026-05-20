@@ -10,14 +10,18 @@
 
 ## TL;DR
 
-- **Upload** any of the 6 sample documents (01–06) or your own.
+- **Upload** PDFs or images (PNG / JPG / WebP / GIF / BMP / TIFF) — same pipeline for both.
 - Three extractors run in parallel against the same JSON schema (Doc 07):
-  - **Google Document AI** → OCR + per-token bounding boxes → **GPT-4o-mini** structurer
-  - **OpenAI GPT-4o** vision over the raw PDF
-  - **Anthropic Claude Sonnet 4.5** vision over the raw PDF
-- A **reconciler** votes per field. 2-of-3 wins. 0-of-3 is surfaced as a *disagreement* — never hidden.
-- A **bbox grounding** step anchors each winning value back to Doc AI tokens, so the review UI can highlight the exact region of the PDF on hover.
-- The review UI shows confidence, edit state (was_edited), and approval state. Edits are persisted and feed an **accuracy dashboard**.
+  - **Google Document AI** → OCR + per-token bounding boxes → **GPT-5 mini** structurer
+  - **OpenAI GPT-4o** vision over the raw file
+  - **Anthropic Claude Sonnet 4.5** vision over the raw file
+- A **reconciler** votes per field with **Doc AI as the source of truth**. 2-of-3 agreement wins; lone vision proposals are *suppressed but surfaced* as soft suggestions so hallucinations don't slip in. Genuine disagreements are flagged, never hidden.
+- A **bbox grounding** step anchors each winning value back to Doc AI tokens (one bbox per phrase for longtext), so the review UI can highlight the exact regions on hover.
+- The review UI shows confidence, multi-region highlights, edit state (`was_edited`), and approval state. Edits are persisted and feed an **accuracy dashboard**.
+- **Live progress per document**: the pipeline writes `documents.phase` (1 OCR → 2 ensemble → 3 reconcile/ground/persist) and the dashboard renders a 3-wedge ring per row with the active wedge softly pulsing. Once the third phase finishes the row flips to `status='done'` and the ring is replaced by a `DONE` badge — "done" is the terminal status, not a fourth phase.
+- **Out-of-scope detection**: each branch first classifies whether the doc is clinical at all. If a majority says no (a menu, a contract, marketing material), the pipeline returns zero fields and the review page shows a banner — no hallucinated patient data on irrelevant files.
+
+> 📐 **Full architecture diagrams + DB schema + file layout:** see [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 ---
 
@@ -53,7 +57,7 @@ flowchart LR
       EXT --> DOCAI[Google Document AI\nOCR + tokens + bboxes]
       EXT --> GPT[OpenAI GPT-4o\nvision on PDF]
       EXT --> CLA[Anthropic Claude Sonnet 4.5\nvision on PDF]
-      DOCAI --> STR[GPT-4o-mini\nmarkdown structurer]
+      DOCAI --> STR[GPT-5 mini\nmarkdown structurer]
       STR --> REC[Reconciler · per-field vote]
       GPT --> REC
       CLA --> REC
@@ -90,7 +94,7 @@ sequenceDiagram
     API->>D: OCR (tokens + markdown)
     D-->>API: pages[], fullMarkdown
     par three branches in parallel
-        API->>S: structureMarkdown(fullMarkdown)
+        API->>S: structureMarkdown(fullMarkdown) [GPT-5 mini]
         S-->>API: ExtractedField[]
     and
         API->>O: extractWithOpenAI(pdfBytes)
@@ -106,18 +110,50 @@ sequenceDiagram
     API-->>UI: { extractionId, fields, reconciliation }
 ```
 
+### Out-of-scope detection (embedded, no extra inference)
+
+The classifier is **part of each branch's existing prompt**, not a separate upfront call. Each model returns a top-level `is_medical_document: boolean` alongside the schema fields, in the same response. The reconciler then votes on scope before it votes on field values:
+
+```
+For each branch (Doc AI structurer / OpenAI / Claude) in one call:
+  → classify: is this a clinical / insurance / medical document?
+  → if YES: extract the 30 fields
+  → if NO:  return { is_medical_document: false, fields: {} } + a one-line reason
+```
+
+The reconciler treats the document as out of scope when **at least half of the branches that voted said "not medical" AND at least one branch voted no** — i.e. majority-of-voters with a floor. When that triggers, every field is forced to null, grounding is skipped, and the review page shows an amber banner instead of the form.
+
+**Why embedded vs. a separate upfront classifier call:**
+
+- **No extra latency or cost** on the common case (real clinical docs) — the classification piggybacks on a call we were going to make anyway.
+- **Three independent votes** vs one. A single upfront classifier that misjudges would silently kill extraction on a real document. The 3-vote scheme tolerates one branch being overly strict (we saw this in testing — a blank intake form got one "no" and two "yes", and the pipeline correctly proceeded).
+- **Trade-off:** when a doc *is* out of scope, the 3 branches still ran (to classify), so the negative case costs the same as the positive case. If production sees a high rate of non-clinical uploads, the next optimization is a cheap upfront short-circuit (e.g., Claude Haiku 4.5 with a 1-token yes/no answer ~50 ms / ~$0.0001) that skips the 3 expensive branches when it's clearly off-topic.
+
 ### Reconciliation rules (`lib/reconciler.ts`)
 
-- **2-of-3 agree** → that value wins, inheriting confidence and `source_quote` from a winning branch.
-- **0-of-3 agree** → the value with the highest individual confidence wins, but the field is tagged `disagreement` so the UI can flag it. We prefer a *false unsure* over a *false confident*.
-- **Type-aware normalization** per field:
-  - `text` / `longtext`: lowercase + collapse whitespace + strip punctuation; `longtext` also falls back to Jaccard similarity over word tokens, so paraphrases count as agreement.
-  - `list`: compared as sets of normalized strings.
-  - `table`: rows aligned by the first column (key), then each cell voted independently.
+Doc AI is the source of truth — its OCR is anchored in real document text. LLM-reported confidence is treated as unreliable (LLMs overconfide), so ties don't break on the confidence number.
+
+- **All 3 agree** → that value wins.
+- **2-of-3 agree** → that value wins; Doc AI is preferred winner if it's in the cluster.
+- **Single branch has a value, it's Doc AI** → keep it (Doc AI is trusted unilaterally).
+- **Single branch has a value, it's OpenAI or Claude** → **suppress the value**, but record the proposal in meta so the UI shows a soft `Suggested` hint the reviewer can manually accept. Prevents lone hallucinations from being persisted.
+- **All 3 disagree, Doc AI has a value** → Doc AI wins, tagged `disagreement` so the UI flags it.
+- **All 3 disagree, Doc AI is null** → return null. Picking by LLM confidence here risks accepting a hallucination.
+
+**Type-aware normalization** per field:
+
+- `text` / `longtext`: lowercase + collapse whitespace + strip punctuation; `longtext` also falls back to Jaccard similarity over word tokens, so paraphrases count as agreement.
+- `list`: compared as sets of normalized strings.
+- `table`: rows aligned by the first column (key), then each cell voted independently.
 
 ### BBox grounding (`lib/bbox-grounding.ts`)
 
-General-purpose vision LLMs are unreliable at coordinates. Doc AI is reliable. So we decouple **"what value is correct"** (ensemble) from **"where is it on the page"** (Doc AI tokens). After reconciliation, each winning value is searched against Doc AI's tokens (tolerant of split tokens) to synthesize the bbox that the review UI overlays on the PDF.
+General-purpose vision LLMs are unreliable at coordinates. Doc AI is reliable. So we decouple **"what value is correct"** (ensemble) from **"where is it on the page"** (Doc AI tokens). After reconciliation, each winning value is searched against Doc AI's tokens to synthesize the bboxes the review UI overlays.
+
+Two refinements that matter in practice:
+
+- For **longtext** the matcher prefers the model's `source_quote` (verbatim citation) over the `value` (which may be paraphrased). It splits the quote into phrases and grounds each separately, yielding multiple bboxes that highlight every region of the document the value was assembled from.
+- For **IDs with internal punctuation** (`ANT-XK7829014`), the tokenizer splits on hyphens first to align with Doc AI's tokens, falling back to whitespace-only for composite tokens like `2/5/26` that Doc AI kept whole.
 
 ---
 
@@ -135,6 +171,7 @@ erDiagram
       text file_name
       text storage_path
       text status "pending|processing|done|error"
+      smallint phase "0..3 — sub-step within processing"
       text error_message
       timestamptz created_at
     }
@@ -241,8 +278,10 @@ npm install
 #    DOCAI_PROCESSOR_ID, DOCAI_LOCATION
 cp .env.local.example .env.local
 
-# 3. Apply migrations
-#    Paste supabase/migrations/*.sql into the Supabase SQL editor, in order.
+# 3. Apply migrations (Supabase CLI)
+#    supabase link --project-ref <your-project-ref>
+#    supabase db push
+#    # (or, against a local stack: `supabase start && supabase db reset`)
 
 # 4. Run
 npm run dev
@@ -285,7 +324,9 @@ The report shows per-document, per-branch, and per-field accuracy, plus a final 
 
 7. **Sync request, not a queue (MVP).** Vercel `maxDuration = 300s` is enough for the 6 sample docs. Production would replace this with a queue + SSE/WebSocket updates — see roadmap.
 
-8. **No Prisma.** The Supabase typed client + raw SQL migrations covered everything an ORM would, with one fewer abstraction to debug.
+8. **Single-request multi-page (MVP).** The sample documents fit in one request: Doc AI's sync endpoint handles ~15 pages, and both vision branches accept the full PDF within their token limits. Clinical documents in this domain (progress notes, referrals, lab reports, intake forms) are typically under 10 pages, so this covers the realistic case. For long H&Ps or discharge summaries (>20 pages) the pipeline would need page-level chunking with a merge step in the reconciler — out of scope for the MVP.
+
+9. **No Prisma.** The Supabase typed client + raw SQL migrations covered everything an ORM would, with one fewer abstraction to debug.
 
 ---
 

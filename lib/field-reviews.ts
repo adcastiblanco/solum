@@ -65,65 +65,54 @@ export async function approveField(
   const serializedOriginal = serializeValue(originalValue);
   const serializedFinal = serializeValue(finalValue);
 
+  // We need to read the existing row to compute was_edited correctly (it
+  // should monotonically advance and ONLY count edits when the AI had
+  // populated the field in the first place). The row may not exist yet on
+  // first approve.
   const { data: existing, error: selectErr } = await supabase
     .from("field_reviews")
-    .select(
-      "id, extraction_id, field_name, original_value, final_value, was_edited, approved, confidence, bbox",
-    )
+    .select("original_value, was_edited")
     .eq("extraction_id", extractionId)
     .eq("field_name", fieldName)
     .maybeSingle();
-
   if (selectErr) throw selectErr;
 
-  if (!existing) {
-    // was_edited only counts as a correction when there was an extracted value
-    // to correct in the first place. Filling in a missing field (original null)
-    // is a "fill-in", not a correction, and should NOT count against accuracy.
-    const wasEdited =
-      serializedOriginal !== null && serializedFinal !== serializedOriginal;
-    const { data: inserted, error: insertErr } = await supabase
-      .from("field_reviews")
-      .insert({
+  // "Original" = the value the AI originally produced. Once persisted, we
+  // never overwrite it — concurrent reviewers all see the same baseline.
+  const persistedOriginal = existing
+    ? existing.original_value
+    : serializedOriginal;
+
+  const wasEdited = existing
+    ? existing.was_edited ||
+      (existing.original_value !== null &&
+        serializedFinal !== existing.original_value)
+    : serializedOriginal !== null && serializedFinal !== serializedOriginal;
+
+  // Upsert is idempotent against the unique (extraction_id, field_name)
+  // constraint, so two concurrent "approve" requests for the same field
+  // (e.g. auto-on-blur + bulk-approve-section racing) don't crash on a
+  // duplicate-key error — the later write just updates the row.
+  const { data: row, error: upsertErr } = await supabase
+    .from("field_reviews")
+    .upsert(
+      {
         extraction_id: extractionId,
         field_name: fieldName,
-        original_value: serializedOriginal,
+        original_value: persistedOriginal,
         final_value: serializedFinal,
         was_edited: wasEdited,
         approved: true,
         confidence,
         bbox,
-      })
-      .select(
-        "extraction_id, field_name, original_value, final_value, was_edited, approved, confidence, bbox",
-      )
-      .single();
-
-    if (insertErr) throw insertErr;
-    return inserted as FieldReviewRow;
-  }
-
-  // Existing row: monotonically advance was_edited, but only when the original
-  // value was non-null (filling in a missing field doesn't count as editing).
-  const wasEdited =
-    existing.was_edited ||
-    (existing.original_value !== null &&
-      serializedFinal !== existing.original_value);
-
-  const { data: updated, error: updateErr } = await supabase
-    .from("field_reviews")
-    .update({
-      final_value: serializedFinal,
-      was_edited: wasEdited,
-      approved: true,
-    })
-    .eq("extraction_id", extractionId)
-    .eq("field_name", fieldName)
+      },
+      { onConflict: "extraction_id,field_name" },
+    )
     .select(
       "extraction_id, field_name, original_value, final_value, was_edited, approved, confidence, bbox",
     )
     .single();
 
-  if (updateErr) throw updateErr;
-  return updated as FieldReviewRow;
+  if (upsertErr) throw upsertErr;
+  return row as FieldReviewRow;
 }

@@ -18,6 +18,7 @@ export function FieldCard({
   onApprove,
   isApproving,
   reconciliation,
+  readOnly,
 }: {
   name: string;
   value: FieldValue;
@@ -29,6 +30,7 @@ export function FieldCard({
   onApprove?: () => void;
   isApproving?: boolean;
   reconciliation?: ReconciliationMeta;
+  readOnly?: boolean;
 }) {
   const def = FIELD_DEFS[name];
   if (!def) return null;
@@ -39,6 +41,16 @@ export function FieldCard({
   // Approved fields take visual precedence — the reviewer already accepted.
   const disagreement = !isApproved && reconciliation?.agreement === "none";
   const singleBranch = !isApproved && reconciliation?.agreement === "single";
+
+  const [reconcileOpen, setReconcileOpen] = useState(false);
+  const reconcileChipVisible = !!(
+    reconciliation &&
+    !isApproved &&
+    !readOnly &&
+    reconciliation.agreement !== "all" &&
+    reconciliation.agreement !== "majority" &&
+    !(reconciliation.agreement === "single" && reconciliation.winner === "docai")
+  );
 
   const cardClasses = [
     "rounded-[var(--r-md)] px-3 py-2 transition-colors",
@@ -61,35 +73,68 @@ export function FieldCard({
       onMouseEnter={() => onHoverChange?.(true)}
       onMouseLeave={() => onHoverChange?.(false)}
     >
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex items-center gap-1.5">
-          <span className="font-sans text-xs text-[var(--gray-600)]">{label}</span>
-          {reconciliation && !isApproved ? (
-            <ReconciliationBadge
-              meta={reconciliation}
-              fieldType={def.type}
-              currentValue={value}
-              onPickVote={onChange}
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5">
+            <span className="font-sans text-xs text-[var(--gray-600)]">{label}</span>
+            {reconcileChipVisible && reconciliation ? (
+              <ReconciliationChip
+                meta={reconciliation}
+                open={reconcileOpen}
+                onToggle={() => setReconcileOpen((v) => !v)}
+              />
+            ) : null}
+          </div>
+          <div className="-mt-0.5">
+            <FieldEditor
+              def={def}
+              value={value}
+              isMissing={isMissing}
+              onChange={onChange}
+              onBlur={onBlur}
+              readOnly={readOnly}
             />
-          ) : null}
+          </div>
         </div>
-        <CheckButton
-          isApproved={!!isApproved}
-          isApproving={!!isApproving}
-          disabled={isMissing && !isApproved}
-          onClick={() => onApprove?.()}
-        />
+        {!readOnly && (
+          <CheckButton
+            isApproved={!!isApproved}
+            isApproving={!!isApproving}
+            disabled={isMissing && !isApproved}
+            onClick={() => onApprove?.()}
+          />
+        )}
       </div>
 
-      <div className="-mt-0.5">
-        <FieldEditor
-          def={def}
-          value={value}
-          isMissing={isMissing}
-          onChange={onChange}
-          onBlur={onBlur}
-        />
-      </div>
+      {/* Reconciliation popover: rendered INLINE below the card so it always
+          fits the card width (no overflow off the panel edge regardless of
+          how long the candidate values are). */}
+      {reconcileOpen && reconciliation ? (
+        <div className="mt-2 rounded-[var(--r-sm)] border border-[var(--gray-200)] bg-white p-2 shadow-sm">
+          <div className="mb-1.5 flex items-center justify-between">
+            <span className="font-mono text-[10px] uppercase tracking-wide text-[var(--gray-600)]">
+              Pick a value
+            </span>
+            <button
+              type="button"
+              onClick={() => setReconcileOpen(false)}
+              className="font-mono text-[10px] uppercase tracking-wide text-[var(--gray-600)] hover:text-navy"
+              aria-label="Close"
+            >
+              ×
+            </button>
+          </div>
+          <ReconciliationVotes
+            meta={reconciliation}
+            fieldType={def.type}
+            currentValue={value}
+            onPickVote={(v) => {
+              onChange(v);
+              setReconcileOpen(false);
+            }}
+          />
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -114,12 +159,14 @@ function FieldEditor({
   isMissing,
   onChange,
   onBlur,
+  readOnly,
 }: {
   def: FieldDef;
   value: FieldValue;
   isMissing: boolean;
   onChange: (next: FieldValue) => void;
   onBlur?: () => void;
+  readOnly?: boolean;
 }) {
   const placeholder = def.extractable ? "Not detected" : "To be filled by reviewer";
 
@@ -131,6 +178,7 @@ function FieldEditor({
         isMissing={isMissing}
         onChange={(v) => onChange(v.length === 0 ? null : v)}
         onBlur={onBlur}
+        readOnly={readOnly}
       />
     );
   }
@@ -146,6 +194,7 @@ function FieldEditor({
         isMissing={isMissing}
         onChange={(next) => onChange(next.length === 0 ? null : next)}
         onBlur={onBlur}
+        readOnly={readOnly}
       />
     );
   }
@@ -160,6 +209,7 @@ function FieldEditor({
         rows={rows}
         onChange={(next) => onChange(next.length === 0 ? null : next)}
         onBlur={onBlur}
+        readOnly={readOnly}
       />
     );
   }
@@ -170,13 +220,14 @@ function FieldEditor({
       type="text"
       value={typeof value === "string" ? value : ""}
       placeholder={placeholder}
+      readOnly={readOnly}
       onChange={(e) => onChange(e.target.value.length === 0 ? null : e.target.value)}
       onBlur={onBlur}
       className={`w-full bg-transparent font-sans text-sm outline-none ${
         isMissing
           ? "text-[var(--gray-400)] placeholder:italic"
           : "text-[var(--gray-900)]"
-      }`}
+      } ${readOnly ? "cursor-default" : ""}`}
     />
   );
 }
@@ -187,13 +238,29 @@ function ListInput({
   isMissing,
   onChange,
   onBlur,
+  readOnly,
 }: {
   items: string[];
   placeholder: string;
   isMissing: boolean;
   onChange: (next: string[]) => void;
   onBlur?: () => void;
+  readOnly?: boolean;
 }) {
+  if (readOnly) {
+    if (items.length === 0) {
+      return (
+        <span className="font-sans text-sm italic text-[var(--gray-400)]">—</span>
+      );
+    }
+    return (
+      <ul className="list-disc pl-4 font-sans text-sm text-[var(--gray-900)]">
+        {items.map((v, i) => (
+          <li key={i}>{v}</li>
+        ))}
+      </ul>
+    );
+  }
   if (isMissing) {
     return (
       <input
@@ -238,15 +305,51 @@ function TableInput({
   rows,
   onChange,
   onBlur,
+  readOnly,
 }: {
   def: FieldDef;
   rows: TableRow[];
   onChange: (next: TableRow[]) => void;
   onBlur?: () => void;
+  readOnly?: boolean;
 }) {
   const cols = def.columns ?? [];
   const emptyRow = (): TableRow => Object.fromEntries(cols.map((c) => [c.key, ""]));
   const displayRows = rows.length === 0 ? [emptyRow()] : rows;
+
+  if (readOnly) {
+    if (rows.length === 0) {
+      return (
+        <span className="font-sans text-sm italic text-[var(--gray-400)]">—</span>
+      );
+    }
+    const gridColsRo = `repeat(${cols.length}, minmax(0, 1fr))`;
+    return (
+      <div className="mt-1 flex w-full flex-col gap-1">
+        <div
+          className="grid gap-1 px-1.5 font-mono text-[10px] uppercase tracking-wide text-[var(--gray-400)]"
+          style={{ gridTemplateColumns: gridColsRo }}
+        >
+          {cols.map((c) => (
+            <span key={c.key} className="truncate">{c.label}</span>
+          ))}
+        </div>
+        {rows.map((row, i) => (
+          <div
+            key={i}
+            className="grid w-full gap-1 px-1.5 font-sans text-xs text-[var(--gray-900)]"
+            style={{ gridTemplateColumns: gridColsRo }}
+          >
+            {cols.map((c) => (
+              <span key={c.key} className="truncate">
+                {row[c.key] || "—"}
+              </span>
+            ))}
+          </div>
+        ))}
+      </div>
+    );
+  }
 
   // minmax(0, 1fr) (instead of plain 1fr) lets each column shrink below its
   // intrinsic content width — without it the input's text content forces the
@@ -349,12 +452,41 @@ function CheckButton({
   );
 }
 
-// Small chip surfacing the ensemble's per-field agreement state. Only
-// rendered for "none" (3 different answers) and "single" (only one branch
-// found a value). Click expands a popover where each non-null branch value
-// becomes a selectable card — clicking it applies that branch's value to
-// the field. The card matching the field's current value is highlighted.
-function ReconciliationBadge({
+// Chip-only: the small badge next to the label. The popover is rendered
+// at the FieldCard level (inline, below the card) so it can use the full
+// card width without overflowing the panel — see the FieldCard JSX.
+function ReconciliationChip({
+  meta,
+  open,
+  onToggle,
+}: {
+  meta: ReconciliationMeta;
+  open: boolean;
+  onToggle: () => void;
+}) {
+  const isWarn = meta.agreement === "none";
+  const label = isWarn ? "Models disagree" : "Suggested";
+  const chipClasses = isWarn
+    ? "border-[var(--amber-600,#d97706)] bg-[var(--amber-50,#fef3c7)] text-[var(--amber-700,#b45309)]"
+    : "border-[var(--gray-300,#d1d5db)] bg-white text-[var(--gray-600)]";
+
+  return (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        onToggle();
+      }}
+      className={`inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wide transition-colors ${chipClasses}`}
+      aria-expanded={open}
+    >
+      <span aria-hidden="true">{isWarn ? "⚠" : "·"}</span>
+      <span>{label}</span>
+    </button>
+  );
+}
+
+function ReconciliationVotes({
   meta,
   fieldType,
   currentValue,
@@ -365,95 +497,50 @@ function ReconciliationBadge({
   currentValue: FieldValue;
   onPickVote: (next: FieldValue) => void;
 }) {
-  const [open, setOpen] = useState(false);
-  if (meta.agreement === "all" || meta.agreement === "majority") return null;
-  // Doc AI single-branch values are trusted; no chip needed.
-  if (meta.agreement === "single" && meta.winner === "docai") return null;
-
-  const isWarn = meta.agreement === "none";
-  const label = isWarn ? "Models disagree" : "Suggested";
-  const chipClasses = isWarn
-    ? "border-[var(--amber-600,#d97706)] bg-[var(--amber-50,#fef3c7)] text-[var(--amber-700,#b45309)]"
-    : "border-[var(--gray-300,#d1d5db)] bg-white text-[var(--gray-600)]";
-
   return (
-    <span className="relative inline-flex">
-      <button
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation();
-          setOpen((v) => !v);
-        }}
-        className={`inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wide transition-colors ${chipClasses}`}
-        aria-expanded={open}
-      >
-        <span aria-hidden="true">{isWarn ? "⚠" : "·"}</span>
-        <span>{label}</span>
-      </button>
-      {open ? (
-        <div className="absolute left-0 top-full z-20 mt-1 min-w-[300px] max-w-[440px] rounded-[var(--r-sm)] border border-[var(--gray-200)] bg-white p-2 shadow-md">
-          <div className="mb-1.5 flex items-center justify-between">
-            <span className="font-mono text-[10px] uppercase tracking-wide text-[var(--gray-600)]">
-              Pick a value
-            </span>
-            <button
-              type="button"
-              onClick={() => setOpen(false)}
-              className="font-mono text-[10px] uppercase tracking-wide text-[var(--gray-600)] hover:text-navy"
-              aria-label="Close"
-            >
-              ×
-            </button>
-          </div>
-          <div className="flex flex-col gap-1">
-            {meta.votes.map((v) => {
-              const empty = v.value === null || v.value === undefined;
-              const isActive = !empty && valuesEqualForPick(v.value, currentValue, fieldType);
+    <div className="flex flex-col gap-1">
+      {meta.votes.map((v) => {
+        const empty = v.value === null || v.value === undefined;
+        const isActive = !empty && valuesEqualForPick(v.value, currentValue, fieldType);
 
-              const rowClasses = empty
-                ? "border border-transparent bg-[var(--gray-50)] opacity-60"
-                : isActive
-                  ? "border border-[var(--green-700)] bg-[var(--green-50)] cursor-pointer"
-                  : "border border-[var(--gray-200)] bg-white hover:border-navy hover:bg-navy-light cursor-pointer";
+        const rowClasses = empty
+          ? "border border-transparent bg-[var(--gray-50)] opacity-60"
+          : isActive
+            ? "border border-[var(--green-700)] bg-[var(--green-50)] cursor-pointer"
+            : "border border-[var(--gray-200)] bg-white hover:border-navy hover:bg-navy-light cursor-pointer";
 
-              const handlePick = () => {
-                if (empty) return;
-                onPickVote(v.value as FieldValue);
-                setOpen(false);
-              };
-
-              return (
-                <button
-                  key={v.branch}
-                  type="button"
-                  onClick={handlePick}
-                  disabled={empty}
-                  className={`flex w-full flex-col items-stretch gap-0.5 rounded-[var(--r-sm)] px-1.5 py-1 text-left text-[11px] transition-colors ${rowClasses}`}
-                  aria-pressed={isActive}
-                >
-                  <div className="flex items-center justify-between gap-2 font-mono text-[9px] uppercase tracking-wide text-[var(--gray-600)]">
-                    <span>{v.branch}</span>
-                    <span>
-                      {isActive
-                        ? "selected"
-                        : empty
-                          ? "no value"
-                          : "use this"}
-                      {v.confidence != null
-                        ? ` · ${(v.confidence * 100).toFixed(0)}%`
-                        : ""}
-                    </span>
-                  </div>
-                  <div className="break-words font-sans text-[var(--gray-900)]">
-                    {formatVoteValue(v.value, fieldType)}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      ) : null}
-    </span>
+        return (
+          <button
+            key={v.branch}
+            type="button"
+            onClick={() => {
+              if (empty) return;
+              onPickVote(v.value as FieldValue);
+            }}
+            disabled={empty}
+            className={`flex w-full flex-col items-stretch gap-0.5 rounded-[var(--r-sm)] px-1.5 py-1 text-left text-[11px] transition-colors ${rowClasses}`}
+            aria-pressed={isActive}
+          >
+            <div className="flex items-center justify-between gap-2 font-mono text-[9px] uppercase tracking-wide text-[var(--gray-600)]">
+              <span>{v.branch}</span>
+              <span>
+                {isActive
+                  ? "selected"
+                  : empty
+                    ? "no value"
+                    : "use this"}
+                {v.confidence != null
+                  ? ` · ${(v.confidence * 100).toFixed(0)}%`
+                  : ""}
+              </span>
+            </div>
+            <div className="break-words whitespace-pre-wrap font-sans text-[var(--gray-900)]">
+              {formatVoteValue(v.value, fieldType)}
+            </div>
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
@@ -494,12 +581,14 @@ function AutoGrowTextarea({
   isMissing,
   onChange,
   onBlur,
+  readOnly,
 }: {
   value: string;
   placeholder: string;
   isMissing: boolean;
   onChange: (v: string) => void;
   onBlur?: () => void;
+  readOnly?: boolean;
 }) {
   const ref = useRef<HTMLTextAreaElement | null>(null);
 
@@ -509,6 +598,19 @@ function AutoGrowTextarea({
     el.style.height = "auto";
     el.style.height = `${el.scrollHeight}px`;
   }, [value]);
+
+  if (readOnly) {
+    if (!value || value.trim().length === 0) {
+      return (
+        <span className="font-sans text-sm italic text-[var(--gray-400)]">—</span>
+      );
+    }
+    return (
+      <p className="whitespace-pre-wrap font-sans text-sm text-[var(--gray-900)]">
+        {value}
+      </p>
+    );
+  }
 
   return (
     <textarea

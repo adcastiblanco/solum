@@ -52,9 +52,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Document not found" }, { status: 404 });
   }
 
+  // phase=1: OCR running. The dashboard renders a 3-wedge ring keyed off this
+  // column (1 OCR → 2 ensemble → 3 reconcile/ground/persist); when work is
+  // finished we flip status='done' and the ring is replaced by the DONE badge.
   await supabase
     .from("documents")
-    .update({ status: "processing", error_message: null })
+    .update({ status: "processing", phase: 1, error_message: null })
     .eq("id", documentId);
 
   try {
@@ -77,27 +80,48 @@ export async function POST(req: Request) {
     // depend on Doc AI, so we launch them alongside the structurer.
     const ocr = await ocrDocument(fileBytes, mimeType);
 
+    // phase=2: ensemble extraction running.
+    await supabase.from("documents").update({ phase: 2 }).eq("id", documentId);
+
     const [structuredDocAi, openaiResult, anthropicResult] = await Promise.allSettled([
       structureMarkdown(ocr.fullMarkdown),
       extractWithOpenAI(fileBytes, mimeType),
       extractWithAnthropic(fileBytes, mimeType),
     ]);
 
+    // phase=3: reconcile + ground + persist.
+    await supabase.from("documents").update({ phase: 3 }).eq("id", documentId);
+
     const branches: BranchResult[] = [];
     const errors: Record<string, string> = {};
 
     if (structuredDocAi.status === "fulfilled") {
-      branches.push({ name: "docai", fields: structuredDocAi.value.fields });
+      branches.push({
+        name: "docai",
+        fields: structuredDocAi.value.fields,
+        isMedicalDocument: structuredDocAi.value.isMedicalDocument,
+        outOfScopeReason: structuredDocAi.value.outOfScopeReason,
+      });
     } else {
       errors.docai = errMsg(structuredDocAi.reason);
     }
     if (openaiResult.status === "fulfilled") {
-      branches.push({ name: "openai", fields: openaiResult.value.fields });
+      branches.push({
+        name: "openai",
+        fields: openaiResult.value.fields,
+        isMedicalDocument: openaiResult.value.isMedicalDocument,
+        outOfScopeReason: openaiResult.value.outOfScopeReason,
+      });
     } else {
       errors.openai = errMsg(openaiResult.reason);
     }
     if (anthropicResult.status === "fulfilled") {
-      branches.push({ name: "anthropic", fields: anthropicResult.value.fields });
+      branches.push({
+        name: "anthropic",
+        fields: anthropicResult.value.fields,
+        isMedicalDocument: anthropicResult.value.isMedicalDocument,
+        outOfScopeReason: anthropicResult.value.outOfScopeReason,
+      });
     } else {
       errors.anthropic = errMsg(anthropicResult.reason);
     }
@@ -109,12 +133,13 @@ export async function POST(req: Request) {
       );
     }
 
-    const { fields: reconciledFields, meta } = reconcile(branches);
+    const { fields: reconciledFields, meta, outOfScope } = reconcile(branches);
 
-    const grounded: ExtractedField[] = groundFieldsWithTokens(
-      reconciledFields,
-      ocr.pages,
-    );
+    // No grounding when the document is out of scope — all values are null
+    // so there's nothing to anchor.
+    const grounded: ExtractedField[] = outOfScope.isOutOfScope
+      ? reconciledFields
+      : groundFieldsWithTokens(reconciledFields, ocr.pages);
 
     const { data: extraction, error: extractionErr } = await supabase
       .from("extractions")
@@ -139,6 +164,7 @@ export async function POST(req: Request) {
                 : { error: errors.anthropic },
           },
           reconciliation: meta,
+          out_of_scope: outOfScope,
         },
         extracted_fields: grounded,
       })
@@ -168,7 +194,7 @@ export async function POST(req: Request) {
 
     await supabase
       .from("documents")
-      .update({ status: "error", error_message: message })
+      .update({ status: "error", phase: 0, error_message: message })
       .eq("id", documentId);
 
     return NextResponse.json({ error: message }, { status: 500 });

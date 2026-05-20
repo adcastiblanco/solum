@@ -15,6 +15,7 @@ import {
   SYSTEM_PROMPT_BASE,
   buildSchemaDescription,
   normalizeBranchFields,
+  readBranchRelevance,
   stripCodeFences,
 } from "./extractor-shared";
 import type { ExtractorResult } from "./types";
@@ -79,6 +80,12 @@ Return the JSON object as specified.`;
     );
   }
 
-  const fields = normalizeBranchFields(parsed);
-  return { fields, raw: response };
+  const relevance = readBranchRelevance(parsed);
+  const fields = relevance.isMedicalDocument ? normalizeBranchFields(parsed) : [];
+  return {
+    fields,
+    raw: response,
+    isMedicalDocument: relevance.isMedicalDocument,
+    outOfScopeReason: relevance.outOfScopeReason,
+  };
 }

@@ -213,6 +213,10 @@ export type ExtractedFields = ExtractedField[];
 export type ExtractorResult = {
   fields: ExtractedField[];
   raw: unknown;
+  // Top-level relevance verdict reported by the branch. When false, the
+  // reconciler treats the document as out-of-scope (no extraction).
+  isMedicalDocument?: boolean;
+  outOfScopeReason?: string | null;
 };
 
 // Each branch must accept the same input (PDF bytes + a signed URL fallback

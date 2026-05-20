@@ -51,7 +51,14 @@ export function buildSchemaDescription(): string {
 // like outputs.
 export const SYSTEM_PROMPT_BASE = `You extract structured data from medical documents (referral letters, clinical notes, insurance cards, lab reports, intake forms, handwritten clinical notes, service request forms). The target schema is a clinical Service Request Form.
 
-For each extractable field return:
+First, decide whether the document is in scope:
+- IN SCOPE = a clinical / medical / insurance document relevant to a healthcare service request. Examples: clinical notes (SOAP, H&P, progress, discharge), referral letters, prior-authorization requests, insurance cards or eligibility statements, lab reports, imaging reports, prescriptions, patient intake forms, medication lists, handwritten clinician notes.
+- OUT OF SCOPE = anything else. Examples: restaurant menus, receipts, contracts, marketing material, resumes, instruction manuals, generic letters, blank pages with no clinical content, screenshots of unrelated apps, software documentation.
+
+If the document is OUT OF SCOPE, do not attempt to fill the schema. Return:
+{ "is_medical_document": false, "out_of_scope_reason": "<one short sentence stating what the document actually is>", "fields": {} }
+
+If the document is IN SCOPE, proceed with extraction. For each extractable field return:
 - value: the typed value (per the field's type) or null when absent
 - confidence: 0.0-1.0 based on how clearly the value is stated
 - source_quote: a short verbatim quote from the document that supports the value (or null)
@@ -84,11 +91,14 @@ Other rules:
 
 Output: a single JSON object (no prose, no markdown fences) with this shape:
 {
+  "is_medical_document": true,
   "fields": {
     "<field_name>": { "value": <typed value or null>, "confidence": <0.0-1.0>, "source_quote": "<short verbatim or null>" },
     ...
   }
-}`;
+}
+or, for out-of-scope documents:
+{ "is_medical_document": false, "out_of_scope_reason": "...", "fields": {} }`;
 
 export type RawFieldResponse = {
   value: unknown;
@@ -144,6 +154,27 @@ export function stripCodeFences(s: string): string {
   const fenced = trimmed.match(/^```(?:json)?\s*\n?([\s\S]*?)\n?```\s*$/);
   if (fenced) return fenced[1].trim();
   return trimmed;
+}
+
+// Read the top-level relevance verdict the branch returned. Treats a
+// missing flag as "in scope" so older prompt versions / lenient responses
+// don't accidentally suppress everything.
+export type BranchRelevance = {
+  isMedicalDocument: boolean;
+  outOfScopeReason: string | null;
+};
+
+export function readBranchRelevance(parsed: unknown): BranchRelevance {
+  if (!parsed || typeof parsed !== "object") {
+    return { isMedicalDocument: true, outOfScopeReason: null };
+  }
+  const obj = parsed as { is_medical_document?: unknown; out_of_scope_reason?: unknown };
+  const flag = obj.is_medical_document;
+  if (flag === false) {
+    const reason = typeof obj.out_of_scope_reason === "string" ? obj.out_of_scope_reason : null;
+    return { isMedicalDocument: false, outOfScopeReason: reason };
+  }
+  return { isMedicalDocument: true, outOfScopeReason: null };
 }
 
 // Given the parsed `{ fields: { ... } }` payload from any branch, normalize it

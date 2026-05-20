@@ -8,6 +8,7 @@ import {
   ExtractorError,
   SYSTEM_PROMPT_BASE,
   normalizeBranchFields,
+  readBranchRelevance,
   stripCodeFences,
   userInstruction,
 } from "./extractor-shared";
@@ -88,6 +89,12 @@ export async function extractWithAnthropic(
     );
   }
 
-  const fields = normalizeBranchFields(parsed);
-  return { fields, raw: response };
+  const relevance = readBranchRelevance(parsed);
+  const fields = relevance.isMedicalDocument ? normalizeBranchFields(parsed) : [];
+  return {
+    fields,
+    raw: response,
+    isMedicalDocument: relevance.isMedicalDocument,
+    outOfScopeReason: relevance.outOfScopeReason,
+  };
 }

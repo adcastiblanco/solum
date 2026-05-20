@@ -54,12 +54,18 @@ export default async function ReviewPage({
   // to highlight fields where the 3 extractor branches disagreed or only one
   // branch produced a value. Older extractions (pre-ensemble) won't have it.
   const rawResponse = (extraction?.raw_extractor_response ?? null) as
-    | { reconciliation?: ReconciliationMeta[] }
+    | {
+        reconciliation?: ReconciliationMeta[];
+        out_of_scope?: { isOutOfScope: boolean; reason: string | null };
+      }
     | null;
   const reconciliation: Record<string, ReconciliationMeta> = {};
   for (const m of rawResponse?.reconciliation ?? []) {
     reconciliation[m.field] = m;
   }
+  const outOfScope = rawResponse?.out_of_scope?.isOutOfScope
+    ? { reason: rawResponse.out_of_scope.reason ?? null }
+    : null;
 
   const initialReviews: Record<string, InitialReview> = {};
   if (extraction?.id) {
@@ -87,6 +93,7 @@ export default async function ReviewPage({
       fields={fields}
       initialReviews={initialReviews}
       reconciliation={reconciliation}
+      outOfScope={outOfScope}
     />
   );
 }

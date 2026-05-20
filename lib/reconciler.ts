@@ -22,6 +22,16 @@ import type { ExtractorName } from "./types";
 export type BranchResult = {
   name: ExtractorName;
   fields: ExtractedField[];
+  isMedicalDocument?: boolean;
+  outOfScopeReason?: string | null;
+};
+
+export type OutOfScopeVerdict = {
+  isOutOfScope: boolean;
+  // Per-branch votes — kept for transparency in the UI and for debugging.
+  votes: Array<{ branch: ExtractorName; isMedicalDocument: boolean; reason: string | null }>;
+  // Best one-line reason among the branches that voted "not medical".
+  reason: string | null;
 };
 
 export type ReconciliationMeta = {
@@ -34,6 +44,7 @@ export type ReconciliationMeta = {
 export type ReconciledOutput = {
   fields: ExtractedField[];
   meta: ReconciliationMeta[];
+  outOfScope: OutOfScopeVerdict;
 };
 
 // ---------- normalization ----------
@@ -209,6 +220,41 @@ function mergeTableRows(
 // ---------- main ----------
 
 export function reconcile(branches: BranchResult[]): ReconciledOutput {
+  // First, ask the simpler question: does this document belong here at all?
+  // Branches that explicitly flagged is_medical_document=false count as
+  // "out of scope" votes. A branch that didn't address the question (legacy
+  // prompt / missing field) abstains. We treat the document as out of scope
+  // when at least half of the branches that voted said "no" AND at least
+  // one branch voted no — i.e. majority-of-voters with a floor.
+  const scopeVotes = branches
+    .filter((b) => typeof b.isMedicalDocument === "boolean")
+    .map((b) => ({
+      branch: b.name,
+      isMedicalDocument: b.isMedicalDocument as boolean,
+      reason: b.outOfScopeReason ?? null,
+    }));
+  const noVotes = scopeVotes.filter((v) => !v.isMedicalDocument);
+  const yesVotes = scopeVotes.filter((v) => v.isMedicalDocument);
+  const isOutOfScope = noVotes.length > 0 && noVotes.length >= yesVotes.length;
+
+  if (isOutOfScope) {
+    return {
+      fields: EXTRACTABLE_FIELDS.map((name) => ({
+        name,
+        value: null,
+        confidence: null,
+        bbox: null,
+        source_quote: null,
+      })),
+      meta: [],
+      outOfScope: {
+        isOutOfScope: true,
+        votes: scopeVotes,
+        reason: noVotes[0]?.reason ?? null,
+      },
+    };
+  }
+
   // Index branches by name for quick lookup.
   const byName = new Map<ExtractorName, ExtractedField[]>();
   for (const b of branches) byName.set(b.name, b.fields);
@@ -335,5 +381,9 @@ export function reconcile(branches: BranchResult[]): ReconciledOutput {
   // Silence unused-name warning if a branch contributed nothing.
   byName.clear();
 
-  return { fields: reconciled, meta };
+  return {
+    fields: reconciled,
+    meta,
+    outOfScope: { isOutOfScope: false, votes: scopeVotes, reason: null },
+  };
 }

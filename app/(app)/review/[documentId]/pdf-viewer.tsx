@@ -148,7 +148,7 @@ export function PdfViewer({
 
       <div
         ref={containerRef}
-        className="min-h-0 flex-1 overflow-auto bg-[var(--gray-100)] p-4"
+        className="scrollbar-hide min-h-0 flex-1 overflow-auto bg-[var(--gray-100)] p-2"
       >
         {isImage ? (
           <ImagePage
@@ -198,29 +198,22 @@ export function PdfViewer({
                 ref={(el) => {
                   pageRefs.current.set(pageNumber, el);
                 }}
-                className="mb-4 overflow-hidden rounded-[var(--r-md)] border border-[var(--gray-200)] bg-white shadow-sm"
+                className="relative mb-3 last:mb-0"
               >
-                <div className="border-b border-[var(--gray-100)] bg-[var(--gray-50)] px-3 py-1 font-mono text-[10px] uppercase tracking-wide text-[var(--gray-600)]">
-                  Page {pageNumber} of {numPages}
-                </div>
-                <div className="relative">
-                  <Page
-                    pageNumber={pageNumber}
-                    width={pageWidth}
-                    renderAnnotationLayer={false}
-                    renderTextLayer={false}
+                <Page
+                  pageNumber={pageNumber}
+                  width={pageWidth}
+                  renderAnnotationLayer={false}
+                  renderTextLayer={false}
+                />
+                {pageBoxes.map((bbox, idx) => (
+                  <BBoxOverlay
+                    key={idx}
+                    bbox={bbox}
+                    confidence={idx === 0 ? highlight?.confidence ?? null : null}
                   />
-                  {pageBoxes.map((bbox, idx) => (
-                    <BBoxOverlay
-                      key={idx}
-                      bbox={bbox}
-                      // Only show the confidence tag on the first bbox to
-                      // avoid stamping the same percentage over every box.
-                      confidence={idx === 0 ? highlight?.confidence ?? null : null}
-                    />
-                  ))}
-                  {loupeOn ? <LoupeLens /> : null}
-                </div>
+                ))}
+                {loupeOn ? <LoupeLens /> : null}
               </div>
             );
           })}
@@ -250,30 +243,22 @@ function ImagePage({
 }) {
   const pageBoxes = highlight?.bboxes.filter((b) => b.page === 1) ?? [];
   return (
-    <div
-      ref={registerRef}
-      className="mb-4 overflow-hidden rounded-[var(--r-md)] border border-[var(--gray-200)] bg-white shadow-sm"
-    >
-      <div className="border-b border-[var(--gray-100)] bg-[var(--gray-50)] px-3 py-1 font-mono text-[10px] uppercase tracking-wide text-[var(--gray-600)]">
-        Image
-      </div>
-      <div className="relative">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={url}
-          alt="document"
-          style={width ? { width: `${width}px`, height: "auto" } : { width: "100%", height: "auto" }}
-          draggable={false}
+    <div ref={registerRef} className="relative">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={url}
+        alt="document"
+        style={width ? { width: `${width}px`, height: "auto" } : { width: "100%", height: "auto" }}
+        draggable={false}
+      />
+      {pageBoxes.map((bbox, idx) => (
+        <BBoxOverlay
+          key={idx}
+          bbox={bbox}
+          confidence={idx === 0 ? highlight?.confidence ?? null : null}
         />
-        {pageBoxes.map((bbox, idx) => (
-          <BBoxOverlay
-            key={idx}
-            bbox={bbox}
-            confidence={idx === 0 ? highlight?.confidence ?? null : null}
-          />
-        ))}
-        {loupeOn ? <ImageLoupeLens /> : null}
-      </div>
+      ))}
+      {loupeOn ? <ImageLoupeLens /> : null}
     </div>
   );
 }

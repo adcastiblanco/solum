@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { FIELD_NAMES, FORM_SECTIONS, type SectionDef } from "@/lib/types";
 import type { ExtractedField, FieldValue } from "@/lib/types";
@@ -54,6 +55,7 @@ export function ReviewClient({
   fields,
   initialReviews,
   reconciliation,
+  outOfScope,
 }: {
   documentId: string;
   extractionId: string | null;
@@ -64,6 +66,7 @@ export function ReviewClient({
   fields: ExtractedField[];
   initialReviews: Record<string, InitialReview>;
   reconciliation: Record<string, ReconciliationMeta>;
+  outOfScope: { reason: string | null } | null;
 }) {
   const fieldsByName = useMemo(
     () => new Map(fields.map((f) => [f.name, f])),
@@ -90,6 +93,9 @@ export function ReviewClient({
   const [hovered, setHovered] = useState<string | null>(null);
   const [sectionIndex, setSectionIndex] = useState(0);
   const [bulkApproving, setBulkApproving] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const router = useRouter();
+  const isApprovedDoc = status === "approved";
 
   const currentSection: SectionDef = FORM_SECTIONS[sectionIndex];
 
@@ -126,8 +132,21 @@ export function ReviewClient({
         }),
       });
       if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        console.error("Approve failed:", body);
+        // Read once as text to handle both JSON and empty 5xx bodies.
+        // Some failure modes (network resets, edge runtime crashes) come
+        // back with no body at all — without the status code we can't tell
+        // them apart.
+        const raw = await res.text().catch(() => "");
+        let body: unknown = raw;
+        try {
+          body = raw ? JSON.parse(raw) : null;
+        } catch {
+          // leave body as the raw string
+        }
+        console.error(
+          `Approve failed (${res.status} ${res.statusText}) field=${name}:`,
+          body,
+        );
         return;
       }
       setApproved((prev) => ({ ...prev, [name]: true }));
@@ -206,6 +225,28 @@ export function ReviewClient({
     }
   };
 
+  const allFieldsApproved = totalFields > 0 && totalApproved === totalFields;
+
+  const handleSubmitFinal = async () => {
+    if (submitting || !allFieldsApproved) return;
+    setSubmitting(true);
+    try {
+      const res = await fetch(`/api/documents/${documentId}/submit`, {
+        method: "POST",
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        console.error("Submit failed:", body);
+        return;
+      }
+      // Re-fetch the server component so the page re-renders in viewer
+      // (read-only) mode with the new "approved" status.
+      router.refresh();
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const goPrev = () => setSectionIndex((i) => Math.max(0, i - 1));
   const goNext = () => setSectionIndex((i) => Math.min(FORM_SECTIONS.length - 1, i + 1));
   const isFirst = sectionIndex === 0;
@@ -241,6 +282,44 @@ export function ReviewClient({
           />
         </section>
 
+        {outOfScope ? (
+          <section className="flex min-h-0 flex-col overflow-hidden rounded-[var(--r-lg)] border border-[var(--amber-600,#d97706)] bg-[var(--amber-50,#fef3c7)]">
+            <div className="border-b border-[var(--amber-600,#d97706)] px-4 py-3">
+              <h2 className="font-sans text-sm font-medium text-[var(--amber-700,#b45309)]">
+                Out of scope · not a clinical document
+              </h2>
+              <p className="font-mono text-[10px] uppercase tracking-wide text-[var(--amber-700,#b45309)] opacity-80">
+                No fields extracted
+              </p>
+            </div>
+            <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 py-6">
+              <p className="font-sans text-sm text-[var(--gray-900)]">
+                The extraction pipeline flagged this file as not a clinical /
+                insurance document, so no fields were filled.
+              </p>
+              {outOfScope.reason ? (
+                <div className="rounded-[var(--r-md)] border border-[var(--amber-600,#d97706)] bg-white p-3 text-sm text-[var(--gray-900)]">
+                  <span className="block font-mono text-[10px] uppercase tracking-wide text-[var(--gray-600)] mb-1">
+                    Reason
+                  </span>
+                  {outOfScope.reason}
+                </div>
+              ) : null}
+              <p className="font-sans text-xs text-[var(--gray-600)]">
+                In-scope documents include clinical notes (SOAP, H&amp;P,
+                progress, discharge), referral letters, prior-authorization
+                requests, insurance cards, lab reports, imaging reports,
+                prescriptions, intake forms, and handwritten clinician notes.
+              </p>
+              <Link
+                href="/dashboard"
+                className="self-start rounded-[var(--r-sm)] border border-[var(--gray-200)] bg-white px-3 py-1.5 font-mono text-xs uppercase tracking-wide text-navy hover:bg-navy-light"
+              >
+                ← Back to dashboard
+              </Link>
+            </div>
+          </section>
+        ) : (
         <section className="flex min-h-0 flex-col overflow-hidden rounded-[var(--r-lg)] border border-[var(--gray-200)] bg-white">
           {/* Top: counter + per-section approve button */}
           <div className="flex items-center justify-between gap-3 border-b border-[var(--gray-100)] px-4 py-3">
@@ -252,26 +331,37 @@ export function ReviewClient({
                 {totalApproved} / {totalFields} approved
               </p>
             </div>
-            <button
-              type="button"
-              onClick={handleApproveSection}
-              disabled={
-                !isReady ||
-                !extractionId ||
-                bulkApproving ||
-                currentStats.pendingNames.length === 0
-              }
-              className="inline-flex items-center gap-2 rounded-[var(--r-sm)] bg-navy px-3 py-1.5 font-mono text-xs uppercase tracking-wide text-white transition-all duration-150 hover:opacity-90 disabled:opacity-40"
-            >
-              {bulkApproving && <Spinner size={12} />}
-              <span>
-                {bulkApproving
-                  ? "Approving…"
-                  : currentStats.pendingNames.length === 0
-                    ? "Section approved"
-                    : `Approve section (${currentStats.pendingNames.length})`}
-              </span>
-            </button>
+            <div className="flex items-center gap-2">
+              {isApprovedDoc ? (
+                <span className="inline-flex items-center gap-1.5 rounded-[var(--r-sm)] border border-[var(--green-700)] bg-[var(--green-50)] px-2.5 py-1 font-mono text-[10px] uppercase tracking-wide text-[var(--green-700)]">
+                  <CheckMarkIcon />
+                  Approved
+                </span>
+              ) : null}
+              <button
+                type="button"
+                onClick={handleApproveSection}
+                disabled={
+                  !isReady ||
+                  !extractionId ||
+                  bulkApproving ||
+                  currentStats.pendingNames.length === 0
+                }
+                className="inline-flex items-center gap-2 rounded-[var(--r-sm)] bg-navy px-3 py-1.5 font-mono text-xs uppercase tracking-wide text-white transition-all duration-150 hover:opacity-90 disabled:opacity-40"
+              >
+                {bulkApproving && <Spinner size={12} />}
+                <span>
+                  {bulkApproving
+                    ? "Approving…"
+                    : currentStats.pendingNames.length === 0
+                      ? currentStats.approved === currentStats.total &&
+                        currentStats.total > 0
+                        ? "Section approved"
+                        : "Nothing to approve"
+                      : `Approve section (${currentStats.pendingNames.length})`}
+                </span>
+              </button>
+            </div>
           </div>
 
           {/* Section nav chips */}
@@ -311,7 +401,7 @@ export function ReviewClient({
           </div>
 
           {/* Scrolling body for this section's fields */}
-          <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-3">
+          <div className="scrollbar-hide min-h-0 flex-1 overflow-y-auto px-4 pb-3">
             <div className="flex flex-col gap-2">
               {currentSection.fields.map((def) => (
                 <FieldCard
@@ -331,33 +421,84 @@ export function ReviewClient({
             </div>
           </div>
 
-          {/* Prev / Next pagination */}
+          {/* Prev / Next pagination + Submit form */}
           <div className="flex shrink-0 items-center justify-between gap-3 border-t border-[var(--gray-100)] px-4 py-2.5">
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={goPrev}
+                disabled={isFirst}
+                className="inline-flex items-center gap-1 font-mono text-[11px] uppercase tracking-wide text-[var(--gray-600)] hover:text-navy disabled:opacity-30 disabled:hover:text-[var(--gray-600)]"
+              >
+                ← Prev
+              </button>
+              <span className="font-mono text-[10px] uppercase tracking-wide text-[var(--gray-400)]">
+                {sectionIndex + 1} / {FORM_SECTIONS.length}
+              </span>
+              <button
+                type="button"
+                onClick={goNext}
+                disabled={isLast}
+                className="inline-flex items-center gap-1 font-mono text-[11px] uppercase tracking-wide text-[var(--gray-600)] hover:text-navy disabled:opacity-30 disabled:hover:text-[var(--gray-600)]"
+              >
+                Next →
+              </button>
+            </div>
             <button
               type="button"
-              onClick={goPrev}
-              disabled={isFirst}
-              className="inline-flex items-center gap-1 font-mono text-[11px] uppercase tracking-wide text-[var(--gray-600)] hover:text-navy disabled:opacity-30 disabled:hover:text-[var(--gray-600)]"
+              onClick={handleSubmitFinal}
+              disabled={submitting || !allFieldsApproved}
+              title={
+                allFieldsApproved
+                  ? isApprovedDoc
+                    ? "Re-submit form"
+                    : "Submit form"
+                  : `${totalFields - totalApproved} field${totalFields - totalApproved === 1 ? "" : "s"} pending approval`
+              }
+              className={`inline-flex items-center gap-2 rounded-[var(--r-sm)] px-3 py-1.5 font-mono text-xs uppercase tracking-wide text-white transition-all duration-150 hover:opacity-90 disabled:opacity-40 ${
+                allFieldsApproved
+                  ? "bg-[var(--green-700)]"
+                  : "bg-[var(--gray-400)] cursor-not-allowed"
+              }`}
             >
-              ← Prev
-            </button>
-            <span className="font-mono text-[10px] uppercase tracking-wide text-[var(--gray-400)]">
-              {sectionIndex + 1} / {FORM_SECTIONS.length}
-            </span>
-            <button
-              type="button"
-              onClick={goNext}
-              disabled={isLast}
-              className="inline-flex items-center gap-1 font-mono text-[11px] uppercase tracking-wide text-[var(--gray-600)] hover:text-navy disabled:opacity-30 disabled:hover:text-[var(--gray-600)]"
-            >
-              Next →
+              {submitting && <Spinner size={12} />}
+              <span>
+                {submitting
+                  ? "Submitting…"
+                  : isApprovedDoc
+                    ? allFieldsApproved
+                      ? "Re-submit form"
+                      : "Submitted"
+                    : allFieldsApproved
+                      ? "Submit form"
+                      : `Submit form (${totalFields - totalApproved} left)`}
+              </span>
             </button>
           </div>
         </section>
+        )}
       </div>
 
       <p className="hidden" data-document-id={documentId} />
     </div>
+  );
+}
+
+function CheckMarkIcon() {
+  return (
+    <svg
+      width="11"
+      height="11"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <polyline points="20 6 9 17 4 12" />
+    </svg>
   );
 }
 
