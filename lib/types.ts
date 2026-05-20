@@ -143,7 +143,7 @@ export const FORM_SECTIONS: SectionDef[] = [
         name: "clinical.treatment_goals",
         label: "Treatment goals and expected outcomes",
         type: "longtext",
-        extractable: false,
+        extractable: true,
       },
     ],
   },
@@ -197,7 +197,35 @@ export type ExtractedField = {
   value: FieldValue;
   confidence: number | null;
   bbox: BBox | null;
-  source_quote?: string | null; // verbatim text from the source markdown supporting this value
+  // For longtext composed from multiple non-contiguous regions of the
+  // source (e.g. clinical history pulling phrases from Subjective, prior
+  // assessments, etc.), grounding yields one BBox per matched phrase.
+  // `bbox` (above) becomes the union of these — kept for back-compat with
+  // anything that expects a single highlight rectangle.
+  bboxes?: BBox[];
+  source_quote?: string | null;
 };
 
 export type ExtractedFields = ExtractedField[];
+
+// Common shape every extractor branch returns. Doc AI branch additionally
+// exposes pages (tokens with bboxes) — see ExtractorResultWithPages.
+export type ExtractorResult = {
+  fields: ExtractedField[];
+  raw: unknown;
+};
+
+// Each branch must accept the same input (PDF bytes + a signed URL fallback
+// for Doc AI which prefers to fetch its own copy) and return ExtractorResult.
+export type ExtractorInput = {
+  pdfBytes: Buffer;
+  signedUrl: string;
+};
+
+export type ExtractorName = "docai" | "openai" | "anthropic";
+
+export type BranchOutput = {
+  name: ExtractorName;
+  result: ExtractorResult;
+};
+

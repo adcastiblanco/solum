@@ -6,12 +6,13 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "eval": "tsx scripts/eval.ts",
+    "eval:generate": "tsx scripts/eval.ts --generate"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.97.1",
     "@google-cloud/documentai": "^9.6.1",
-    "@mistralai/mistralai": "^2.2.1",
     "@supabase/ssr": "^0.10.3",
     "@supabase/supabase-js": "^2.106.0",
     "geist": "^1.7.0",

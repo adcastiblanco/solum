@@ -1,15 +1,21 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-// OCR layer 1: Google Document AI (high-fidelity OCR + per-word bboxes).
-import { ocrDocument, DocAIError } from "@/lib/docai";
-// Categorizer layer 2: OpenAI GPT-5.5. Receives Doc AI tokens (numbered) and
-// returns field values plus the token indices that produced each value, so
-// we can compute bboxes directly from Doc AI's positional data — no
-// string-matching needed.
-import {
-  categorizeMarkdown,
-  CategorizationError,
-} from "@/lib/openai-categorizer";
+
+// Three-branch ensemble extraction:
+//   1. Doc AI (OCR + per-token bboxes)  →  markdown  →  GPT-4o-mini structurer
+//   2. OpenAI vision (GPT-4o reads the PDF directly)
+//   3. Claude vision (Sonnet 4.5 reads the PDF directly)
+// All three return ExtractedField[] under the same schema; the reconciler
+// votes per field; the final values get bboxes grounded against Doc AI
+// tokens (the only branch that produces reliable per-word bboxes).
+import { fetchPdfBytes, ocrDocument, DocAIError } from "@/lib/docai";
+import { structureMarkdown } from "@/lib/docai-structurer";
+import { extractWithOpenAI } from "@/lib/openai-extractor";
+import { extractWithAnthropic } from "@/lib/anthropic-extractor";
+import { reconcile, type BranchResult } from "@/lib/reconciler";
+import { groundFieldsWithTokens } from "@/lib/bbox-grounding";
+import { ExtractorError } from "@/lib/extractor-shared";
+import type { ExtractedField } from "@/lib/types";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -62,16 +68,49 @@ export async function POST(req: Request) {
       );
     }
 
-    // Pipeline layer 1: Google Document AI → high-fidelity OCR + per-word
-    // bboxes. The markdown feeds the categorizer; the page tokens are kept
-    // for future bbox-highlight use.
-    const ocr = await ocrDocument(signed.signedUrl);
+    const pdfBytes = await fetchPdfBytes(signed.signedUrl);
 
-    // Pipeline layer 2: LLM categorizer receives the numbered Doc AI tokens,
-    // returns field values plus token_indices per field. bbox is computed
-    // directly from Doc AI's positional data — no string matching.
-    const { fields, rawCategorizerResponse } = await categorizeMarkdown(
-      ocr.fullMarkdown,
+    // Doc AI has to finish first because the structurer reads its markdown
+    // and the grounding step needs its tokens. The vision branches don't
+    // depend on Doc AI, so we launch them alongside the structurer.
+    const ocr = await ocrDocument(pdfBytes);
+
+    const [structuredDocAi, openaiResult, anthropicResult] = await Promise.allSettled([
+      structureMarkdown(ocr.fullMarkdown),
+      extractWithOpenAI(pdfBytes),
+      extractWithAnthropic(pdfBytes),
+    ]);
+
+    const branches: BranchResult[] = [];
+    const errors: Record<string, string> = {};
+
+    if (structuredDocAi.status === "fulfilled") {
+      branches.push({ name: "docai", fields: structuredDocAi.value.fields });
+    } else {
+      errors.docai = errMsg(structuredDocAi.reason);
+    }
+    if (openaiResult.status === "fulfilled") {
+      branches.push({ name: "openai", fields: openaiResult.value.fields });
+    } else {
+      errors.openai = errMsg(openaiResult.reason);
+    }
+    if (anthropicResult.status === "fulfilled") {
+      branches.push({ name: "anthropic", fields: anthropicResult.value.fields });
+    } else {
+      errors.anthropic = errMsg(anthropicResult.reason);
+    }
+
+    if (branches.length === 0) {
+      throw new ExtractorError(
+        `All extraction branches failed: ${JSON.stringify(errors)}`,
+        "transport",
+      );
+    }
+
+    const { fields: reconciledFields, meta } = reconcile(branches);
+
+    const grounded: ExtractedField[] = groundFieldsWithTokens(
+      reconciledFields,
       ocr.pages,
     );
 
@@ -79,19 +118,33 @@ export async function POST(req: Request) {
       .from("extractions")
       .insert({
         document_id: documentId,
-        raw_mistral_response: {
+        raw_extractor_response: {
           ocr: ocr.raw,
-          pages: ocr.pages, // tokens with bboxes for the highlight feature
-          categorizer: rawCategorizerResponse,
+          pages: ocr.pages,
           markdown: ocr.fullMarkdown,
+          branches: {
+            docai:
+              structuredDocAi.status === "fulfilled"
+                ? structuredDocAi.value
+                : { error: errors.docai },
+            openai:
+              openaiResult.status === "fulfilled"
+                ? openaiResult.value
+                : { error: errors.openai },
+            anthropic:
+              anthropicResult.status === "fulfilled"
+                ? anthropicResult.value
+                : { error: errors.anthropic },
+          },
+          reconciliation: meta,
         },
-        extracted_fields: fields,
+        extracted_fields: grounded,
       })
       .select("id")
       .single();
 
     if (extractionErr) {
-      throw new DocAIError(
+      throw new ExtractorError(
         `Failed to persist extraction: ${extractionErr.message}`,
         "transport",
       );
@@ -102,7 +155,12 @@ export async function POST(req: Request) {
       .update({ status: "done", error_message: null })
       .eq("id", documentId);
 
-    return NextResponse.json({ extractionId: extraction.id, fields });
+    return NextResponse.json({
+      extractionId: extraction.id,
+      fields: grounded,
+      reconciliation: meta,
+      branchErrors: errors,
+    });
   } catch (err) {
     const message = toUserMessage(err);
 
@@ -113,6 +171,11 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ error: message }, { status: 500 });
   }
+}
+
+function errMsg(e: unknown): string {
+  if (e instanceof Error) return e.message;
+  return String(e);
 }
 
 function toUserMessage(err: unknown): string {
@@ -128,8 +191,8 @@ function toUserMessage(err: unknown): string {
         return "OCR failed — try again";
     }
   }
-  if (err instanceof CategorizationError) {
-    return `Categorization failed: ${err.message.replace(/^(Claude|Gemini) call failed: /, "")}`.slice(0, 200);
+  if (err instanceof ExtractorError) {
+    return `Extraction failed: ${err.message}`.slice(0, 200);
   }
   return "Extraction failed — try again";
 }

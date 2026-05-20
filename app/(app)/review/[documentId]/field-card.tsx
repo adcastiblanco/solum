@@ -1,6 +1,8 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import { FIELD_DEFS, type FieldDef, type FieldValue, type TableRow } from "@/lib/types";
+import type { ReconciliationMeta } from "@/lib/reconciler";
 import { Spinner } from "@/components/spinner";
 
 export type { FieldValue } from "@/lib/types";
@@ -15,6 +17,7 @@ export function FieldCard({
   isApproved,
   onApprove,
   isApproving,
+  reconciliation,
 }: {
   name: string;
   value: FieldValue;
@@ -25,21 +28,31 @@ export function FieldCard({
   isApproved?: boolean;
   onApprove?: () => void;
   isApproving?: boolean;
+  reconciliation?: ReconciliationMeta;
 }) {
   const def = FIELD_DEFS[name];
   if (!def) return null;
   const label = def.label;
   const isMissing = isValueMissing(def, value);
 
+  // Highlight when the ensemble disagreed: warn (none) > info (single).
+  // Approved fields take visual precedence — the reviewer already accepted.
+  const disagreement = !isApproved && reconciliation?.agreement === "none";
+  const singleBranch = !isApproved && reconciliation?.agreement === "single";
+
   const cardClasses = [
     "rounded-[var(--r-md)] px-3 py-2 transition-colors",
     isApproved
       ? "border-2 border-[var(--green-700)] bg-[var(--green-50)]"
-      : isHovered
-        ? "border-2 border-navy bg-navy-light"
-        : isMissing
-          ? "border-2 border-[var(--gray-200)] bg-[var(--gray-50)]"
-          : "border-2 border-[var(--gray-200)] bg-white",
+      : disagreement
+        ? "border-2 border-[var(--amber-600,#d97706)] bg-[var(--amber-50,#fef3c7)]"
+        : isHovered
+          ? "border-2 border-navy bg-navy-light"
+          : singleBranch
+            ? "border-2 border-[var(--gray-300,#d1d5db)] bg-white"
+            : isMissing
+              ? "border-2 border-[var(--gray-200)] bg-[var(--gray-50)]"
+              : "border-2 border-[var(--gray-200)] bg-white",
   ].join(" ");
 
   return (
@@ -49,7 +62,17 @@ export function FieldCard({
       onMouseLeave={() => onHoverChange?.(false)}
     >
       <div className="flex items-start justify-between gap-2">
-        <span className="font-sans text-xs text-[var(--gray-600)]">{label}</span>
+        <div className="flex items-center gap-1.5">
+          <span className="font-sans text-xs text-[var(--gray-600)]">{label}</span>
+          {reconciliation && !isApproved ? (
+            <ReconciliationBadge
+              meta={reconciliation}
+              fieldType={def.type}
+              currentValue={value}
+              onPickVote={onChange}
+            />
+          ) : null}
+        </div>
         <CheckButton
           isApproved={!!isApproved}
           isApproving={!!isApproving}
@@ -102,17 +125,12 @@ function FieldEditor({
 
   if (def.type === "longtext") {
     return (
-      <textarea
-        rows={3}
+      <AutoGrowTextarea
         value={typeof value === "string" ? value : ""}
         placeholder={placeholder}
-        onChange={(e) => onChange(e.target.value.length === 0 ? null : e.target.value)}
+        isMissing={isMissing}
+        onChange={(v) => onChange(v.length === 0 ? null : v)}
         onBlur={onBlur}
-        className={`w-full resize-y bg-transparent font-sans text-sm outline-none ${
-          isMissing
-            ? "text-[var(--gray-400)] placeholder:italic"
-            : "text-[var(--gray-900)]"
-        }`}
       />
     );
   }
@@ -230,21 +248,26 @@ function TableInput({
   const emptyRow = (): TableRow => Object.fromEntries(cols.map((c) => [c.key, ""]));
   const displayRows = rows.length === 0 ? [emptyRow()] : rows;
 
+  // minmax(0, 1fr) (instead of plain 1fr) lets each column shrink below its
+  // intrinsic content width — without it the input's text content forces the
+  // column to grow, pushing the last column off-screen.
+  const gridCols = `repeat(${cols.length}, minmax(0, 1fr))`;
+
   return (
-    <div className="mt-1 flex flex-col gap-1.5">
+    <div className="mt-1 flex w-full flex-col gap-1.5">
       <div
-        className="grid gap-1 font-mono text-[10px] uppercase tracking-wide text-[var(--gray-400)]"
-        style={{ gridTemplateColumns: `repeat(${cols.length}, 1fr)` }}
+        className="grid gap-1 px-1.5 font-mono text-[10px] uppercase tracking-wide text-[var(--gray-400)]"
+        style={{ gridTemplateColumns: gridCols }}
       >
         {cols.map((c) => (
-          <span key={c.key}>{c.label}</span>
+          <span key={c.key} className="truncate">{c.label}</span>
         ))}
       </div>
       {displayRows.map((row, i) => (
         <div
           key={i}
-          className="grid gap-1"
-          style={{ gridTemplateColumns: `repeat(${cols.length}, 1fr)` }}
+          className="grid w-full gap-1"
+          style={{ gridTemplateColumns: gridCols }}
         >
           {cols.map((c) => (
             <input
@@ -256,11 +279,10 @@ function TableInput({
                 const next = displayRows.map((r, j) =>
                   j === i ? { ...r, [c.key]: e.target.value } : r,
                 );
-                // Drop fully-empty rows on blur via the next handler
                 onChange(next.filter((r) => Object.values(r).some((v) => v.trim() !== "")));
               }}
               onBlur={onBlur}
-              className="rounded-[var(--r-sm)] border border-[var(--gray-100)] bg-white px-1.5 py-1 font-sans text-xs text-[var(--gray-900)] outline-none focus:border-navy"
+              className="w-full min-w-0 rounded-[var(--r-sm)] border border-[var(--gray-100)] bg-white px-1.5 py-1 font-sans text-xs text-[var(--gray-900)] outline-none focus:border-navy"
             />
           ))}
         </div>
@@ -324,6 +346,184 @@ function CheckButton({
     >
       <CheckIcon />
     </button>
+  );
+}
+
+// Small chip surfacing the ensemble's per-field agreement state. Only
+// rendered for "none" (3 different answers) and "single" (only one branch
+// found a value). Click expands a popover where each non-null branch value
+// becomes a selectable card — clicking it applies that branch's value to
+// the field. The card matching the field's current value is highlighted.
+function ReconciliationBadge({
+  meta,
+  fieldType,
+  currentValue,
+  onPickVote,
+}: {
+  meta: ReconciliationMeta;
+  fieldType: FieldDef["type"];
+  currentValue: FieldValue;
+  onPickVote: (next: FieldValue) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  if (meta.agreement === "all" || meta.agreement === "majority") return null;
+  // Doc AI single-branch values are trusted; no chip needed.
+  if (meta.agreement === "single" && meta.winner === "docai") return null;
+
+  const isWarn = meta.agreement === "none";
+  const label = isWarn ? "Models disagree" : "Suggested";
+  const chipClasses = isWarn
+    ? "border-[var(--amber-600,#d97706)] bg-[var(--amber-50,#fef3c7)] text-[var(--amber-700,#b45309)]"
+    : "border-[var(--gray-300,#d1d5db)] bg-white text-[var(--gray-600)]";
+
+  return (
+    <span className="relative inline-flex">
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          setOpen((v) => !v);
+        }}
+        className={`inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wide transition-colors ${chipClasses}`}
+        aria-expanded={open}
+      >
+        <span aria-hidden="true">{isWarn ? "⚠" : "·"}</span>
+        <span>{label}</span>
+      </button>
+      {open ? (
+        <div className="absolute left-0 top-full z-20 mt-1 min-w-[300px] max-w-[440px] rounded-[var(--r-sm)] border border-[var(--gray-200)] bg-white p-2 shadow-md">
+          <div className="mb-1.5 flex items-center justify-between">
+            <span className="font-mono text-[10px] uppercase tracking-wide text-[var(--gray-600)]">
+              Pick a value
+            </span>
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              className="font-mono text-[10px] uppercase tracking-wide text-[var(--gray-600)] hover:text-navy"
+              aria-label="Close"
+            >
+              ×
+            </button>
+          </div>
+          <div className="flex flex-col gap-1">
+            {meta.votes.map((v) => {
+              const empty = v.value === null || v.value === undefined;
+              const isActive = !empty && valuesEqualForPick(v.value, currentValue, fieldType);
+
+              const rowClasses = empty
+                ? "border border-transparent bg-[var(--gray-50)] opacity-60"
+                : isActive
+                  ? "border border-[var(--green-700)] bg-[var(--green-50)] cursor-pointer"
+                  : "border border-[var(--gray-200)] bg-white hover:border-navy hover:bg-navy-light cursor-pointer";
+
+              const handlePick = () => {
+                if (empty) return;
+                onPickVote(v.value as FieldValue);
+                setOpen(false);
+              };
+
+              return (
+                <button
+                  key={v.branch}
+                  type="button"
+                  onClick={handlePick}
+                  disabled={empty}
+                  className={`flex w-full flex-col items-stretch gap-0.5 rounded-[var(--r-sm)] px-1.5 py-1 text-left text-[11px] transition-colors ${rowClasses}`}
+                  aria-pressed={isActive}
+                >
+                  <div className="flex items-center justify-between gap-2 font-mono text-[9px] uppercase tracking-wide text-[var(--gray-600)]">
+                    <span>{v.branch}</span>
+                    <span>
+                      {isActive
+                        ? "selected"
+                        : empty
+                          ? "no value"
+                          : "use this"}
+                      {v.confidence != null
+                        ? ` · ${(v.confidence * 100).toFixed(0)}%`
+                        : ""}
+                    </span>
+                  </div>
+                  <div className="break-words font-sans text-[var(--gray-900)]">
+                    {formatVoteValue(v.value, fieldType)}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
+    </span>
+  );
+}
+
+function valuesEqualForPick(
+  a: unknown,
+  b: FieldValue,
+  fieldType: FieldDef["type"],
+): boolean {
+  if (a === b) return true;
+  if (a == null || b == null) return false;
+  if (fieldType === "text" || fieldType === "longtext") {
+    return String(a).trim() === String(b).trim();
+  }
+  // Lists & tables: compare via JSON. Reasonable for short structures.
+  try {
+    return JSON.stringify(a) === JSON.stringify(b);
+  } catch {
+    return false;
+  }
+}
+
+function formatVoteValue(value: unknown, fieldType: FieldDef["type"]): string {
+  if (value === null || value === undefined) return "—";
+  if (fieldType === "table" && Array.isArray(value)) {
+    return `${value.length} row${value.length === 1 ? "" : "s"}`;
+  }
+  if (Array.isArray(value)) return value.join(", ");
+  if (typeof value === "string") return value;
+  return JSON.stringify(value);
+}
+
+// Textarea that resizes itself to fit content on every value change. Lets
+// long extracted narratives (clinical history, plan, etc.) render in full
+// without forcing the reviewer to drag a resize handle.
+function AutoGrowTextarea({
+  value,
+  placeholder,
+  isMissing,
+  onChange,
+  onBlur,
+}: {
+  value: string;
+  placeholder: string;
+  isMissing: boolean;
+  onChange: (v: string) => void;
+  onBlur?: () => void;
+}) {
+  const ref = useRef<HTMLTextAreaElement | null>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [value]);
+
+  return (
+    <textarea
+      ref={ref}
+      rows={1}
+      value={value}
+      placeholder={placeholder}
+      onChange={(e) => onChange(e.target.value)}
+      onBlur={onBlur}
+      className={`w-full resize-none overflow-hidden bg-transparent font-sans text-sm outline-none ${
+        isMissing
+          ? "text-[var(--gray-400)] placeholder:italic"
+          : "text-[var(--gray-900)]"
+      }`}
+    />
   );
 }
 

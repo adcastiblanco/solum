@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { FIELD_NAMES, type ExtractedField } from "@/lib/types";
 import { deserializeValue, type FieldValue } from "@/lib/field-reviews";
+import type { ReconciliationMeta } from "@/lib/reconciler";
 import { ReviewClient, type InitialReview } from "./review-client";
 
 export const dynamic = "force-dynamic";
@@ -24,7 +25,7 @@ export default async function ReviewPage({
 
   const { data: extraction } = await supabase
     .from("extractions")
-    .select("id, extracted_fields, created_at")
+    .select("id, extracted_fields, raw_extractor_response, created_at")
     .eq("document_id", documentId)
     .order("created_at", { ascending: false })
     .limit(1)
@@ -47,6 +48,17 @@ export default async function ReviewPage({
         bbox: null,
       },
   );
+
+  // Reconciliation metadata: the ensemble's per-field agreement state, used
+  // to highlight fields where the 3 extractor branches disagreed or only one
+  // branch produced a value. Older extractions (pre-ensemble) won't have it.
+  const rawResponse = (extraction?.raw_extractor_response ?? null) as
+    | { reconciliation?: ReconciliationMeta[] }
+    | null;
+  const reconciliation: Record<string, ReconciliationMeta> = {};
+  for (const m of rawResponse?.reconciliation ?? []) {
+    reconciliation[m.field] = m;
+  }
 
   const initialReviews: Record<string, InitialReview> = {};
   if (extraction?.id) {
@@ -72,6 +84,7 @@ export default async function ReviewPage({
       pdfUrl={pdfUrl}
       fields={fields}
       initialReviews={initialReviews}
+      reconciliation={reconciliation}
     />
   );
 }

@@ -44,10 +44,32 @@ export type DocAiResult = {
 let cachedClient: DocumentProcessorServiceClient | null = null;
 function client(): DocumentProcessorServiceClient {
   if (cachedClient) return cachedClient;
+  // Production (Vercel): full service-account JSON in GOOGLE_APPLICATION_CREDENTIALS_JSON.
+  // Local dev: filesystem path in GOOGLE_APPLICATION_CREDENTIALS.
+  const credsJson = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
+  if (credsJson) {
+    let parsed: { client_email?: string; private_key?: string; project_id?: string };
+    try {
+      parsed = JSON.parse(credsJson);
+    } catch (e) {
+      throw new DocAIError(
+        `GOOGLE_APPLICATION_CREDENTIALS_JSON is not valid JSON: ${(e as Error).message}`,
+        "auth",
+      );
+    }
+    cachedClient = new DocumentProcessorServiceClient({
+      credentials: {
+        client_email: parsed.client_email,
+        private_key: parsed.private_key?.replace(/\\n/g, "\n"),
+      },
+      projectId: parsed.project_id,
+    });
+    return cachedClient;
+  }
   const keyFile = process.env.GOOGLE_APPLICATION_CREDENTIALS;
   if (!keyFile) {
     throw new DocAIError(
-      "GOOGLE_APPLICATION_CREDENTIALS is not configured",
+      "GOOGLE_APPLICATION_CREDENTIALS_JSON or GOOGLE_APPLICATION_CREDENTIALS must be set",
       "auth",
     );
   }
@@ -68,8 +90,10 @@ function processorName(): string {
   return `projects/${project}/locations/${location}/processors/${processor}`;
 }
 
-// Fetch a PDF (signed URL) and base64-encode it for the inline-bytes request.
-async function fetchPdfBytes(signedUrl: string): Promise<Buffer> {
+// Fetch a PDF (signed URL) and return the raw bytes. Exposed so callers can
+// reuse the same buffer across multiple OCR/vision providers without
+// re-downloading.
+export async function fetchPdfBytes(signedUrl: string): Promise<Buffer> {
   const r = await fetch(signedUrl);
   if (!r.ok) {
     throw new DocAIError(
@@ -85,7 +109,7 @@ async function fetchPdfBytes(signedUrl: string): Promise<Buffer> {
 // the full document.text) to its concrete string.
 function resolveText(
   documentText: string,
-  textAnchor: { textSegments?: Array<{ startIndex?: string | number; endIndex?: string | number }> } | null | undefined,
+  textAnchor: { textSegments?: Array<{ startIndex?: string | number | { toString(): string } | null; endIndex?: string | number | { toString(): string } | null }> | null } | null | undefined,
 ): string {
   if (!textAnchor?.textSegments) return "";
   let out = "";
@@ -100,9 +124,14 @@ function resolveText(
 // Layer 1 of the extraction pipeline (Doc AI variant): high-fidelity OCR with
 // per-word bboxes. Returns plain text + token-level bboxes for the bbox hover
 // feature, plus a fullMarkdown string for the categorizer.
-export async function ocrDocument(signedUrl: string): Promise<DocAiResult> {
+export async function ocrDocument(
+  signedUrlOrBytes: string | Buffer,
+): Promise<DocAiResult> {
   const c = client();
-  const pdfBytes = await fetchPdfBytes(signedUrl);
+  const pdfBytes =
+    typeof signedUrlOrBytes === "string"
+      ? await fetchPdfBytes(signedUrlOrBytes)
+      : signedUrlOrBytes;
 
   let response;
   try {
