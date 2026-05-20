@@ -1,3 +1,4 @@
+import OpenAI from "openai";
 import type { DocAiPage, DocAiToken } from "./docai";
 import {
   EXTRACTABLE_FIELDS,
@@ -9,13 +10,15 @@ import {
   type TableRow,
 } from "./types";
 
-// Gemini Flash categorizer.
-// Same shape as lib/openai-categorizer.ts: receives Doc AI tokens (numbered),
-// returns field values + token_indices, and we resolve bboxes directly from
-// Doc AI's positional data. Swap the import in /api/extract to switch providers.
+// LLM categorizer using OpenAI (GPT-5.5).
+//
+// Architecture note: instead of asking the LLM for field values and then
+// string-matching them back to Doc AI tokens, we pass the Doc AI tokens
+// (each with a global index) AS the input, and ask the LLM to return the
+// token indices that produced each field's value. We compute the bbox by
+// unioning the referenced tokens' bboxes directly. No string matching.
 
-const MODEL = "gemini-2.5-flash";
-const ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`;
+const MODEL = "gpt-5.5";
 
 export class CategorizationError extends Error {
   constructor(
@@ -28,17 +31,23 @@ export class CategorizationError extends Error {
   }
 }
 
-function apiKey(): string {
-  const k = process.env.GEMINI_API_KEY;
-  if (!k) {
+let cachedClient: OpenAI | null = null;
+function client(): OpenAI {
+  if (cachedClient) return cachedClient;
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
     throw new CategorizationError(
-      "GEMINI_API_KEY is not configured",
+      "OPENAI_API_KEY is not configured",
       "transport",
     );
   }
-  return k;
+  cachedClient = new OpenAI({ apiKey });
+  return cachedClient;
 }
 
+// Flatten DocAi pages into a single globally-indexed token list. The bbox of
+// each token already carries its page number, so we don't need to track that
+// separately for bbox computation.
 type IndexedToken = DocAiToken & { index: number };
 
 function flattenTokens(pages: DocAiPage[]): IndexedToken[] {
@@ -53,6 +62,9 @@ function flattenTokens(pages: DocAiPage[]): IndexedToken[] {
   return out;
 }
 
+// Render the token list into a compact string the LLM can read and reference
+// by index. Format: `[0] Date\n[1] :\n[2] 2/5/26\n...` with page breaks
+// indicated explicitly.
 function renderTokens(tokens: IndexedToken[]): string {
   let currentPage = 0;
   const lines: string[] = [];
@@ -61,6 +73,7 @@ function renderTokens(tokens: IndexedToken[]): string {
       currentPage = t.bbox.page;
       lines.push(`\n=== Page ${currentPage} ===`);
     }
+    // Strip newlines inside token text so each token is one line.
     const text = t.text.replace(/\s+/g, " ").trim();
     lines.push(`[${t.index}] ${text}`);
   }
@@ -107,7 +120,7 @@ Rules:
 - For the patient/member name, split into last_name / first_name / middle_initial when the document presents them that way; otherwise put the full name in last_name and leave first_name/middle_initial null.
 - token_indices MUST reference tokens that actually contain the field's content. Do not invent indices.
 
-For table-type fields (medications, assessments), token_indices refers to the ENTIRE table region (all rows).
+For table-type fields (medications, assessments), token_indices refers to the ENTIRE table region (all rows). Per-cell bbox is out of scope.
 
 Output: a single JSON object with this shape:
 {
@@ -173,6 +186,7 @@ function coerceFieldValue(fieldName: string, raw: unknown): FieldValue {
 
 function unionBbox(boxes: BBox[]): BBox | null {
   if (boxes.length === 0) return null;
+  // Group by page; take the union of the page with the most tokens.
   const byPage = new Map<number, BBox[]>();
   for (const b of boxes) {
     const arr = byPage.get(b.page) ?? [];
@@ -218,7 +232,7 @@ export async function categorizeMarkdown(
 ): Promise<CategorizationResult> {
   if (!pages || pages.length === 0) {
     throw new CategorizationError(
-      "Gemini categorizer requires Doc AI pages with tokens",
+      "OpenAI categorizer requires Doc AI pages with tokens",
       "schema",
     );
   }
@@ -236,67 +250,30 @@ ${buildSchemaDescription()}
 
 Return the JSON object as specified, with token_indices referencing the indices above.`;
 
-  const requestBody = JSON.stringify({
-    systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
-    contents: [{ role: "user", parts: [{ text: userMessage }] }],
-    generationConfig: {
-      responseMimeType: "application/json",
-      temperature: 0,
-      maxOutputTokens: 16384,
-    },
-  });
+  const c = client();
 
-  // Retry on 503 (Gemini Flash free tier load) with exponential backoff.
-  const MAX_ATTEMPTS = 4;
-  let resp: Response | null = null;
-  let lastError = "";
-  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-    try {
-      const r = await fetch(`${ENDPOINT}?key=${apiKey()}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: requestBody,
-      });
-      if (r.ok) {
-        resp = r;
-        break;
-      }
-      const text = await r.text();
-      lastError = `${r.status}: ${text.slice(0, 200)}`;
-      const isRetryable = r.status === 503 || r.status === 429 || r.status >= 500;
-      if (!isRetryable || attempt === MAX_ATTEMPTS) {
-        throw new CategorizationError(`Gemini ${lastError}`, "transport");
-      }
-      const delayMs = 1000 * (Math.pow(2, attempt) - 1);
-      await new Promise((res) => setTimeout(res, delayMs));
-    } catch (err) {
-      if (err instanceof CategorizationError) throw err;
-      const message = err instanceof Error ? err.message : String(err);
-      if (attempt === MAX_ATTEMPTS) {
-        throw new CategorizationError(
-          `Gemini call failed: ${message}`,
-          "transport",
-          err,
-        );
-      }
-      lastError = message;
-      await new Promise((res) => setTimeout(res, 1000 * attempt));
-    }
-  }
-
-  if (!resp) {
+  let response: OpenAI.Chat.Completions.ChatCompletion;
+  try {
+    response = await c.chat.completions.create({
+      model: MODEL,
+      messages: [
+        { role: "system", content: SYSTEM_PROMPT },
+        { role: "user", content: userMessage },
+      ],
+      response_format: { type: "json_object" },
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
     throw new CategorizationError(
-      `Gemini call failed after retries: ${lastError}`,
+      `OpenAI call failed: ${message}`,
       "transport",
+      err,
     );
   }
 
-  const body = (await resp.json()) as {
-    candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
-  };
-  const rawText = body.candidates?.[0]?.content?.parts?.[0]?.text;
+  const rawText = response.choices?.[0]?.message?.content ?? "";
   if (!rawText) {
-    throw new CategorizationError("Gemini returned no text content", "schema");
+    throw new CategorizationError("OpenAI returned no content", "schema");
   }
 
   let parsed: { fields?: Record<string, RawFieldResponse> };
@@ -304,7 +281,7 @@ Return the JSON object as specified, with token_indices referencing the indices 
     parsed = JSON.parse(rawText);
   } catch (err) {
     throw new CategorizationError(
-      `Gemini response was not valid JSON: ${rawText.slice(0, 200)}`,
+      `OpenAI response was not valid JSON: ${rawText.slice(0, 200)}`,
       "schema",
       err,
     );
@@ -316,10 +293,17 @@ Return the JSON object as specified, with token_indices referencing the indices 
   const fields: ExtractedField[] = EXTRACTABLE_FIELDS.map((name) => {
     const r = rawFields[name];
     if (!r || typeof r !== "object") {
-      return { name, value: null, confidence: null, bbox: null, source_quote: null };
+      return {
+        name,
+        value: null,
+        confidence: null,
+        bbox: null,
+        source_quote: null,
+      };
     }
     const value = coerceFieldValue(name, r.value);
 
+    // Resolve token indices → bbox via union, directly from Doc AI positions.
     let bbox: BBox | null = null;
     if (Array.isArray(r.token_indices) && r.token_indices.length > 0) {
       const boxes: BBox[] = [];
@@ -339,5 +323,5 @@ Return the JSON object as specified, with token_indices referencing the indices 
     return { name, value, confidence, bbox, source_quote };
   });
 
-  return { fields, rawCategorizerResponse: body };
+  return { fields, rawCategorizerResponse: response };
 }

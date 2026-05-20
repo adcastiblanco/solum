@@ -1,12 +1,19 @@
 import Anthropic from "@anthropic-ai/sdk";
+import type { DocAiPage, DocAiToken } from "./docai";
 import {
   EXTRACTABLE_FIELDS,
   FIELD_DEFS,
+  type BBox,
   type ExtractedField,
   type ExtractedFields,
   type FieldValue,
   type TableRow,
 } from "./types";
+
+// Claude Sonnet categorizer.
+// Same shape as the OpenAI and Gemini variants: receives Doc AI tokens
+// (numbered), returns field values + token_indices, and we resolve bboxes
+// directly from Doc AI's positional data.
 
 const MODEL = "claude-sonnet-4-5";
 
@@ -21,7 +28,9 @@ export class CategorizationError extends Error {
   }
 }
 
+let cachedClient: Anthropic | null = null;
 function client(): Anthropic {
+  if (cachedClient) return cachedClient;
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     throw new CategorizationError(
@@ -29,12 +38,38 @@ function client(): Anthropic {
       "transport",
     );
   }
-  return new Anthropic({ apiKey });
+  cachedClient = new Anthropic({ apiKey });
+  return cachedClient;
 }
 
-// Build a compact JSON-schema-style description that Claude can map the
-// markdown onto. We only include extractable fields — the rest stay null
-// and the human reviewer fills them in on the UI.
+type IndexedToken = DocAiToken & { index: number };
+
+function flattenTokens(pages: DocAiPage[]): IndexedToken[] {
+  const out: IndexedToken[] = [];
+  let i = 0;
+  for (const p of pages) {
+    for (const t of p.tokens) {
+      out.push({ ...t, index: i });
+      i++;
+    }
+  }
+  return out;
+}
+
+function renderTokens(tokens: IndexedToken[]): string {
+  let currentPage = 0;
+  const lines: string[] = [];
+  for (const t of tokens) {
+    if (t.bbox.page !== currentPage) {
+      currentPage = t.bbox.page;
+      lines.push(`\n=== Page ${currentPage} ===`);
+    }
+    const text = t.text.replace(/\s+/g, " ").trim();
+    lines.push(`[${t.index}] ${text}`);
+  }
+  return lines.join("\n");
+}
+
 function buildSchemaDescription(): string {
   return EXTRACTABLE_FIELDS.map((name) => {
     const def = FIELD_DEFS[name];
@@ -57,36 +92,45 @@ function buildSchemaDescription(): string {
   }).join("\n");
 }
 
-const SYSTEM_PROMPT = `You are a clinical document categorizer. You receive OCR markdown from a medical document (referral letter, clinical note, insurance card, lab report, intake form, etc.) and must map its content into the Service Request Form schema.
+const SYSTEM_PROMPT = `You are a clinical document categorizer. You receive a list of OCR tokens (each with an index) extracted from a medical document (referral letter, clinical note, insurance card, lab report, intake form, etc.) and must map the content into the Service Request Form schema.
+
+For each extractable field you must return:
+- value: the typed value (see field's type spec) or null
+- token_indices: the list of token indices whose text formed this value (or [] for null values)
+- confidence: 0.0-1.0 based on how clearly the value is stated
+- source_quote: a verbatim concatenation of the referenced tokens
 
 Rules:
-- Return null for any field not present in the document. Do not invent values.
-- For ICD-10 codes ("service.icd10_codes") capture EVERY diagnosis code you can find in the document, not only the principal diagnoses. Include comorbidities and historical conditions explicitly stated as ICD-10 codes.
-- For clinical history ("clinical.history") concatenate ALL clinical narrative sections (subjective, objective, plan, family history, medical history) into one coherent paragraph. Don't pick only one section.
-- For medications ("clinical.medications") return one row per medication with medication / dose / frequency / prescriber. Use empty string "" for sub-fields you cannot determine (not null).
-- For assessment scores ("clinical.assessments") return one row per validated instrument (e.g. PHQ-9, PCL-5) with tool / score / date.
-- Preserve the exact spelling and punctuation from the document. Do NOT correct typos or OCR artifacts — the reviewer will fix those.
+- Return null/[] for any field not present.
+- For ICD-10 codes ("service.icd10_codes") capture EVERY diagnosis code in the document, not only principal diagnoses. Include comorbidities and historical conditions stated as ICD-10 codes.
+- For clinical history ("clinical.history") concatenate ALL clinical narrative (subjective, objective, plan, family history, medical history) into one coherent paragraph. Provide token_indices spanning all referenced tokens.
+- For medications ("clinical.medications") return one row per medication with medication / dose / frequency / prescriber. Use "" for sub-fields you cannot determine.
+- For assessment scores ("clinical.assessments") return one row per validated instrument with tool / score / date.
+- Preserve exact spelling and punctuation from the tokens. Do NOT correct typos or OCR artifacts.
 - For the patient/member name, split into last_name / first_name / middle_initial when the document presents them that way; otherwise put the full name in last_name and leave first_name/middle_initial null.
-- For each field, also provide a confidence score (0.0–1.0) based on how clearly the value is stated, and a verbatim quote from the markdown that supports the value.
+- token_indices MUST reference tokens that actually contain the field's content. Do not invent indices.
 
 Output: a single JSON object (no prose, no markdown fences) with this shape:
 {
   "fields": {
-    "<field_name>": { "value": <typed value or null>, "confidence": <0.0-1.0>, "source_quote": "<verbatim text from markdown or null>" },
+    "<field_name>": {
+      "value": <typed value or null>,
+      "token_indices": [<int>, ...],
+      "confidence": <0.0-1.0>,
+      "source_quote": "<verbatim concatenation or null>"
+    },
     ...
   }
 }`;
 
 type RawFieldResponse = {
   value: unknown;
+  token_indices?: unknown;
   confidence?: unknown;
   source_quote?: unknown;
 };
 
-function coerceFieldValue(
-  fieldName: string,
-  raw: unknown,
-): FieldValue {
+function coerceFieldValue(fieldName: string, raw: unknown): FieldValue {
   if (raw === null || raw === undefined) return null;
   const def = FIELD_DEFS[fieldName];
   if (!def) return null;
@@ -128,33 +172,85 @@ function coerceFieldValue(
   }
 }
 
+function unionBbox(boxes: BBox[]): BBox | null {
+  if (boxes.length === 0) return null;
+  const byPage = new Map<number, BBox[]>();
+  for (const b of boxes) {
+    const arr = byPage.get(b.page) ?? [];
+    arr.push(b);
+    byPage.set(b.page, arr);
+  }
+  let bestPage = boxes[0].page;
+  let bestCount = 0;
+  for (const [p, arr] of byPage) {
+    if (arr.length > bestCount) {
+      bestCount = arr.length;
+      bestPage = p;
+    }
+  }
+  const onPage = byPage.get(bestPage)!;
+  let minX = 1,
+    minY = 1,
+    maxX = 0,
+    maxY = 0;
+  for (const b of onPage) {
+    minX = Math.min(minX, b.x);
+    minY = Math.min(minY, b.y);
+    maxX = Math.max(maxX, b.x + b.width);
+    maxY = Math.max(maxY, b.y + b.height);
+  }
+  return {
+    page: bestPage,
+    x: minX,
+    y: minY,
+    width: Math.max(0, maxX - minX),
+    height: Math.max(0, maxY - minY),
+  };
+}
+
+function stripCodeFences(s: string): string {
+  const trimmed = s.trim();
+  const fenced = trimmed.match(/^```(?:json)?\s*\n([\s\S]*?)\n```\s*$/);
+  if (fenced) return fenced[1].trim();
+  return trimmed;
+}
+
 export type CategorizationResult = {
   fields: ExtractedFields;
-  rawClaudeResponse: unknown;
+  rawCategorizerResponse: unknown;
 };
 
 export async function categorizeMarkdown(
-  markdown: string,
+  _markdown: string,
+  pages?: DocAiPage[],
 ): Promise<CategorizationResult> {
-  const anthropic = client();
+  if (!pages || pages.length === 0) {
+    throw new CategorizationError(
+      "Anthropic categorizer requires Doc AI pages with tokens",
+      "schema",
+    );
+  }
 
-  const userMessage = `OCR markdown from the document:
+  const tokens = flattenTokens(pages);
+  const tokenList = renderTokens(tokens);
 
-\`\`\`markdown
-${markdown}
-\`\`\`
+  const userMessage = `OCR tokens from the document (numbered):
 
-Schema (extractable fields only — non-extractable form fields like service type, dates, justification are handled separately):
+${tokenList}
+
+Extractable fields:
 
 ${buildSchemaDescription()}
 
-Return the JSON object as specified.`;
+Return the JSON object as specified, with token_indices referencing the indices above.`;
+
+  const anthropic = client();
 
   let response: Anthropic.Messages.Message;
   try {
     response = await anthropic.messages.create({
       model: MODEL,
-      max_tokens: 4096,
+      max_tokens: 8192,
       system: SYSTEM_PROMPT,
       messages: [{ role: "user", content: userMessage }],
     });
@@ -173,13 +269,9 @@ Return the JSON object as specified.`;
     .join("");
 
   if (!text) {
-    throw new CategorizationError(
-      "Claude returned no text content",
-      "schema",
-    );
+    throw new CategorizationError("Claude returned no text content", "schema");
   }
 
-  // Claude is asked to return raw JSON, but sometimes wraps in fences anyway.
   const jsonText = stripCodeFences(text);
 
   let parsed: { fields?: Record<string, RawFieldResponse> };
@@ -194,29 +286,33 @@ Return the JSON object as specified.`;
   }
 
   const rawFields = parsed.fields ?? {};
+  const tokensByIndex = new Map(tokens.map((t) => [t.index, t]));
 
-  // Build the full ExtractedFields list — one entry per FIELD_NAMES, with
-  // null defaults for non-extractable / missing entries.
   const fields: ExtractedField[] = EXTRACTABLE_FIELDS.map((name) => {
     const r = rawFields[name];
     if (!r || typeof r !== "object") {
       return { name, value: null, confidence: null, bbox: null, source_quote: null };
     }
     const value = coerceFieldValue(name, r.value);
+
+    let bbox: BBox | null = null;
+    if (Array.isArray(r.token_indices) && r.token_indices.length > 0) {
+      const boxes: BBox[] = [];
+      for (const idx of r.token_indices) {
+        if (typeof idx !== "number" || !Number.isFinite(idx)) continue;
+        const t = tokensByIndex.get(idx);
+        if (t) boxes.push(t.bbox);
+      }
+      bbox = unionBbox(boxes);
+    }
+
     const confidence =
       typeof r.confidence === "number" && Number.isFinite(r.confidence)
         ? Math.max(0, Math.min(1, r.confidence))
         : null;
     const source_quote = typeof r.source_quote === "string" ? r.source_quote : null;
-    return { name, value, confidence, bbox: null, source_quote };
+    return { name, value, confidence, bbox, source_quote };
   });
 
-  return { fields, rawClaudeResponse: response };
-}
-
-function stripCodeFences(s: string): string {
-  const trimmed = s.trim();
-  const fenced = trimmed.match(/^```(?:json)?\s*\n([\s\S]*?)\n```\s*$/);
-  if (fenced) return fenced[1].trim();
-  return trimmed;
+  return { fields, rawCategorizerResponse: response };
 }

@@ -1,15 +1,15 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-// OCR layer 1: Google Document AI (best on handwriting + real per-word bboxes).
-// Mistral OCR is kept in lib/mistral.ts as a fallback option.
+// OCR layer 1: Google Document AI (high-fidelity OCR + per-word bboxes).
 import { ocrDocument, DocAIError } from "@/lib/docai";
-// Categorizer layer 2: Gemini Flash. Swap to `@/lib/anthropic` (Claude Sonnet)
-// when the Anthropic key is available — same signature.
+// Categorizer layer 2: OpenAI GPT-5.5. Receives Doc AI tokens (numbered) and
+// returns field values plus the token indices that produced each value, so
+// we can compute bboxes directly from Doc AI's positional data — no
+// string-matching needed.
 import {
   categorizeMarkdown,
   CategorizationError,
-} from "@/lib/gemini-categorizer";
-import { groundFieldsWithTokens } from "@/lib/bbox-grounding";
+} from "@/lib/openai-categorizer";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -67,13 +67,13 @@ export async function POST(req: Request) {
     // for future bbox-highlight use.
     const ocr = await ocrDocument(signed.signedUrl);
 
-    // Pipeline layer 2: LLM categorizer → maps OCR markdown to the Form 07 schema.
-    const { fields: rawFields, rawCategorizerResponse } = await categorizeMarkdown(ocr.fullMarkdown);
-
-    // Layer 3: anchor each field value to its bbox via token string-matching
-    // against the Doc AI tokens. Honest about misses — if the value can't be
-    // located, bbox stays null.
-    const fields = groundFieldsWithTokens(rawFields, ocr.pages);
+    // Pipeline layer 2: LLM categorizer receives the numbered Doc AI tokens,
+    // returns field values plus token_indices per field. bbox is computed
+    // directly from Doc AI's positional data — no string matching.
+    const { fields, rawCategorizerResponse } = await categorizeMarkdown(
+      ocr.fullMarkdown,
+      ocr.pages,
+    );
 
     const { data: extraction, error: extractionErr } = await supabase
       .from("extractions")
