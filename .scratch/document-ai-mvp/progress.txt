@@ -9,3 +9,15 @@ Issue 01 — Project bootstrap — DONE (2026-05-19)
 - app/page.tsx renders a canvas-background landing page with the Solum Health title in Instrument Serif italic navy. npm run dev boots cleanly on :3000 (HTTP 200).
 
 Next: Issue 02.
+
+Issue 02 — Auth shell + empty dashboard — DONE (2026-05-19)
+
+- Supabase SSR wired with helpers: lib/supabase/client.ts (createBrowserClient), lib/supabase/server.ts (createServerClient over cookies()), and lib/supabase/middleware.ts (createServerClient over request cookies, refreshes session and gates routes).
+- middleware.ts at repo root delegates to updateSession. Public paths: /login, /signup, /auth/*. Authenticated users hitting /login or /signup are bounced to /dashboard; unauthenticated users on any other route get redirected to /login.
+- Auth routes under app/(auth)/: /login and /signup share auth-form.tsx and a centered layout. Server actions in login/actions.ts and signup/actions.ts call signInWithPassword / signUp + immediate sign-in, then revalidate and redirect to /dashboard. Errors surface via ?error= query param.
+- Protected shell under app/(app)/: layout fetches the user (redirects to /login if absent) and renders Nav + canvas main. Dashboard route renders the navy serif header and a dashed empty-state card (no upload yet).
+- components/nav.tsx is the persistent nav: navy background, Instrument Serif logo, Dashboard + Accuracy links, user email, and a Log out form that posts to the signOut server action in app/auth/actions.ts (signs out, revalidates, redirects to /login).
+- Root / now redirect()s to /dashboard so the middleware handles the auth gate uniformly.
+- `npx next build` passes; the only warning is the Next 16 "middleware → proxy" deprecation notice (cosmetic for MVP).
+
+Next: Issue 03.
