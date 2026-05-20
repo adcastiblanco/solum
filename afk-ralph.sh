@@ -2,7 +2,7 @@
 
 # Default to 5 iterations if no argument is provided
 MAX_ITERATIONS=${1:-5}
-WORK_DIR=".scratch/claude-md-thinning"
+WORK_DIR=".scratch/document-ai-mvp"
 
 # 1. Create a directory for completed issues
 mkdir -p "${WORK_DIR}/issues/done"
@@ -30,7 +30,7 @@ for ((i=1; i<=$MAX_ITERATIONS; i++)); do
 Carefully read @${WORK_DIR}/PRD.md, @${WORK_DIR}/progress.txt, and specifically this issue: @${NEXT_ISSUE}.
 
 Mission:
-1. Execute the tasks defined ONLY in @${NEXT_ISSUE} using TDD.
+1. Execute the tasks defined ONLY in @${NEXT_ISSUE}. No automated tests for this MVP — focus on shipping the slice end-to-end and verifying it manually via the acceptance criteria.
 2. Make a Git commit with the changes. Format: 'feat: [Issue topic]'.
 3. Update @${WORK_DIR}/progress.txt with a short summary of what you built.
 4. Output exactly <promise>ISSUE_COMPLETE</promise> at the end of your response so the system knows it's done.
