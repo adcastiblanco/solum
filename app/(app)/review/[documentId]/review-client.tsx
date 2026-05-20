@@ -3,9 +3,10 @@
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import type { ExtractedField } from "@/lib/types";
+import { FIELD_NAMES, FIELD_DEFS, FORM_SECTIONS } from "@/lib/types";
+import type { ExtractedField, FieldValue } from "@/lib/types";
 import { Spinner } from "@/components/spinner";
-import { FieldCard, type FieldValue } from "./field-card";
+import { FieldCard } from "./field-card";
 import type { Highlight } from "./pdf-viewer";
 
 const PdfViewer = dynamic(() => import("./pdf-viewer").then((m) => m.PdfViewer), {
@@ -27,6 +28,21 @@ type FieldState = {
   value: FieldValue;
 };
 
+function isValueEmpty(value: FieldValue): boolean {
+  if (value === null || value === undefined) return true;
+  if (typeof value === "string") return value.trim() === "";
+  if (Array.isArray(value)) {
+    if (value.length === 0) return true;
+    if (typeof value[0] === "string") {
+      return !(value as string[]).some((s) => s.trim().length > 0);
+    }
+    return !(value as Array<Record<string, string>>).some((row) =>
+      Object.values(row).some((s) => (s ?? "").trim().length > 0),
+    );
+  }
+  return true;
+}
+
 export function ReviewClient({
   documentId,
   extractionId,
@@ -44,15 +60,22 @@ export function ReviewClient({
   fields: ExtractedField[];
   initialReviews: Record<string, InitialReview>;
 }) {
-  const [values, setValues] = useState<FieldState[]>(
-    fields.map((f) => {
-      const review = initialReviews[f.name];
-      return {
-        name: f.name,
-        value: review?.approved ? review.finalValue : f.value,
-      };
+  // Build a value map covering ALL form fields (including non-extractable ones).
+  // Extractable fields get pre-filled from `fields`; the rest start null.
+  const fieldsByName = useMemo(
+    () => new Map(fields.map((f) => [f.name, f])),
+    [fields],
+  );
+
+  const [values, setValues] = useState<FieldState[]>(() =>
+    FIELD_NAMES.map((name) => {
+      const review = initialReviews[name];
+      const extracted = fieldsByName.get(name);
+      const initial = review?.approved ? review.finalValue : (extracted?.value ?? null);
+      return { name, value: initial };
     }),
   );
+
   const [approved, setApproved] = useState<Record<string, boolean>>(() => {
     const init: Record<string, boolean> = {};
     for (const [name, r] of Object.entries(initialReviews)) {
@@ -78,10 +101,9 @@ export function ReviewClient({
 
   const handleApprove = async (name: string) => {
     if (!extractionId) return;
-    const field = fields.find((f) => f.name === name);
-    if (!field) return;
     const current = values.find((s) => s.name === name);
     if (!current) return;
+    const extracted = fieldsByName.get(name);
 
     setApproving((prev) => ({ ...prev, [name]: true }));
     try {
@@ -91,10 +113,10 @@ export function ReviewClient({
         body: JSON.stringify({
           extractionId,
           fieldName: name,
-          originalValue: field.value,
+          originalValue: extracted?.value ?? null,
           finalValue: current.value,
-          confidence: field.confidence,
-          bbox: field.bbox,
+          confidence: extracted?.confidence ?? null,
+          bbox: extracted?.bbox ?? null,
         }),
       });
       if (!res.ok) {
@@ -116,23 +138,16 @@ export function ReviewClient({
 
   const highlight: Highlight | null = useMemo(() => {
     if (!hovered) return null;
-    const field = fields.find((f) => f.name === hovered);
+    const field = fieldsByName.get(hovered);
     if (!field || !field.bbox) return null;
     return { bbox: field.bbox, confidence: field.confidence };
-  }, [hovered, fields]);
+  }, [hovered, fieldsByName]);
 
-  // Auto-approve when the user leaves a field. No-op when the field is empty
-  // or already approved — so plain tab-through of approved fields doesn't
-  // re-fire the API call.
   const handleAutoApprove = (name: string) => {
     if (!extractionId || approved[name] || approving[name]) return;
     const current = values.find((s) => s.name === name);
     if (!current) return;
-    const v = current.value;
-    const hasValue = Array.isArray(v)
-      ? v.some((x) => x.trim().length > 0)
-      : typeof v === "string" && v.trim().length > 0;
-    if (!hasValue) return;
+    if (isValueEmpty(current.value)) return;
     void handleApprove(name);
   };
 
@@ -142,14 +157,12 @@ export function ReviewClient({
     () =>
       values.filter((s) => {
         if (approved[s.name]) return false;
-        const v = s.value;
-        if (v == null) return false;
-        if (Array.isArray(v)) return v.some((x) => x.trim().length > 0);
-        return v.trim().length > 0;
+        return !isValueEmpty(s.value);
       }),
     [values, approved],
   );
 
+  const totalFields = FIELD_NAMES.length;
   const [bulkApproving, setBulkApproving] = useState(false);
 
   const handleApproveAll = async () => {
@@ -164,6 +177,8 @@ export function ReviewClient({
       setBulkApproving(false);
     }
   };
+
+  const valueByName = new Map(values.map((s) => [s.name, s.value]));
 
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-4 px-6 py-6">
@@ -181,7 +196,7 @@ export function ReviewClient({
         </div>
         <div className="flex items-center gap-3">
           <span className="font-mono text-xs uppercase tracking-wide text-[var(--gray-600)]">
-            {Object.keys(approved).length} / {fields.length} approved
+            {Object.keys(approved).length} / {totalFields} approved
           </span>
           <button
             type="button"
@@ -208,7 +223,7 @@ export function ReviewClient({
 
       <div
         className="grid flex-1 gap-4 overflow-hidden rounded-[var(--r-lg)]"
-        style={{ gridTemplateColumns: "60fr 40fr", minHeight: "70vh" }}
+        style={{ gridTemplateColumns: "55fr 45fr", minHeight: "70vh" }}
       >
         <section className="overflow-hidden rounded-[var(--r-lg)] border border-[var(--gray-200)] bg-white">
           <PdfViewer url={pdfUrl} highlight={highlight} />
@@ -217,7 +232,7 @@ export function ReviewClient({
         <section className="flex flex-col overflow-hidden rounded-[var(--r-lg)] border border-[var(--gray-200)] bg-white">
           <div className="border-b border-[var(--gray-100)] px-4 py-3">
             <h2 className="font-sans text-sm font-medium text-[var(--gray-900)]">
-              Extracted fields
+              Service Request Form
             </h2>
             <p className="font-mono text-[10px] uppercase tracking-wide text-[var(--gray-600)]">
               {isReady
@@ -226,20 +241,29 @@ export function ReviewClient({
             </p>
           </div>
           <div className="flex-1 overflow-y-auto p-4">
-            <div className="flex flex-col gap-2">
-              {values.map((s) => (
-                <FieldCard
-                  key={s.name}
-                  name={s.name}
-                  value={s.value}
-                  onChange={(next) => setFieldValue(s.name, next)}
-                  onBlur={() => handleAutoApprove(s.name)}
-                  isHovered={hovered === s.name}
-                  onHoverChange={(h) => setHovered(h ? s.name : null)}
-                  isApproved={!!approved[s.name]}
-                  isApproving={!!approving[s.name]}
-                  onApprove={() => handleApprove(s.name)}
-                />
+            <div className="flex flex-col gap-5">
+              {FORM_SECTIONS.map((section) => (
+                <div key={section.key} className="flex flex-col gap-2">
+                  <h3 className="font-mono text-[11px] uppercase tracking-wider text-navy">
+                    {section.title}
+                  </h3>
+                  <div className="flex flex-col gap-2">
+                    {section.fields.map((def) => (
+                      <FieldCard
+                        key={def.name}
+                        name={def.name}
+                        value={valueByName.get(def.name) ?? null}
+                        onChange={(next) => setFieldValue(def.name, next)}
+                        onBlur={() => handleAutoApprove(def.name)}
+                        isHovered={hovered === def.name}
+                        onHoverChange={(h) => setHovered(h ? def.name : null)}
+                        isApproved={!!approved[def.name]}
+                        isApproving={!!approving[def.name]}
+                        onApprove={() => handleApprove(def.name)}
+                      />
+                    ))}
+                  </div>
+                </div>
               ))}
             </div>
           </div>

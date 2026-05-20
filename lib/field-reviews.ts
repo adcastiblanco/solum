@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { BBox } from "./types";
+import type { BBox, FieldValue } from "./types";
 
-export type FieldValue = string | string[] | null;
+export type { FieldValue } from "./types";
 
 export type ApproveFieldInput = {
   extractionId: string;
@@ -23,22 +23,32 @@ export type FieldReviewRow = {
   bbox: BBox | null;
 };
 
-// JSON-encode values so arrays and strings round-trip through a single text column.
-// null stays null.
+// JSON-encode values so strings, lists, and table rows round-trip through a
+// single text column. null stays null.
 export function serializeValue(v: FieldValue): string | null {
   if (v === null || v === undefined) return null;
   if (typeof v === "string") {
     return v.length === 0 ? null : JSON.stringify(v);
   }
-  const cleaned = v.filter((s) => s.length > 0);
-  return cleaned.length === 0 ? null : JSON.stringify(cleaned);
+  if (!Array.isArray(v) || v.length === 0) return null;
+  // Array of strings or array of TableRow — JSON handles both, just drop blanks.
+  if (typeof v[0] === "string") {
+    const cleaned = (v as string[]).filter((s) => s.length > 0);
+    return cleaned.length === 0 ? null : JSON.stringify(cleaned);
+  }
+  // TableRow[] — drop rows where all columns are empty
+  const cleanedRows = (v as Array<Record<string, string>>).filter((row) =>
+    Object.values(row).some((s) => (s ?? "").trim().length > 0),
+  );
+  return cleanedRows.length === 0 ? null : JSON.stringify(cleanedRows);
 }
 
 export function deserializeValue(s: string | null): FieldValue {
   if (s === null) return null;
   try {
     const parsed = JSON.parse(s);
-    if (typeof parsed === "string" || Array.isArray(parsed)) return parsed;
+    if (typeof parsed === "string") return parsed;
+    if (Array.isArray(parsed)) return parsed;
     return null;
   } catch {
     return s;
