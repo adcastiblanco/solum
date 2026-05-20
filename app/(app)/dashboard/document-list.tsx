@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { Spinner } from "@/components/spinner";
 
 export type DocumentRow = {
   id: string;
@@ -68,9 +69,10 @@ function RetryButton({
       type="button"
       onClick={handleClick}
       disabled={busy}
-      className="inline-flex items-center rounded-[var(--r-sm)] border border-[var(--gray-200)] bg-white px-2 py-0.5 font-mono text-xs uppercase tracking-wide text-navy hover:bg-navy-light disabled:opacity-50"
+      className="inline-flex items-center gap-1.5 rounded-[var(--r-sm)] border border-[var(--gray-200)] bg-white px-2 py-0.5 font-mono text-xs uppercase tracking-wide text-navy transition-all duration-150 hover:bg-navy-light disabled:opacity-50"
     >
-      {busy ? "Retrying" : "Retry"}
+      {busy && <Spinner size={11} />}
+      <span>{busy ? "Retrying" : "Retry"}</span>
     </button>
   );
 }

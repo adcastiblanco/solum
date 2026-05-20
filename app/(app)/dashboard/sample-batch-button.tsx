@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { Spinner } from "@/components/spinner";
 
 const SAMPLE_FILES = [
   "02-referral-letter.pdf",
@@ -111,9 +112,10 @@ export function SampleBatchButton({ onChange }: Props) {
         type="button"
         disabled={running}
         onClick={handleClick}
-        className="rounded-[var(--r-sm)] bg-navy px-4 py-2 font-sans text-sm text-white hover:bg-navy-mid disabled:opacity-60"
+        className="inline-flex items-center gap-2 rounded-[var(--r-sm)] bg-navy px-4 py-2 font-sans text-sm text-white transition-all duration-150 hover:bg-navy-mid disabled:opacity-60"
       >
-        {running ? "Running sample batch…" : "Run sample batch"}
+        {running && <Spinner size={14} />}
+        <span>{running ? "Running sample batch…" : "Run sample batch"}</span>
       </button>
       {error && (
         <span className="font-mono text-xs text-[var(--gray-600)]">

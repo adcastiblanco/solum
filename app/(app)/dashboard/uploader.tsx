@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { Spinner } from "@/components/spinner";
 
 type UploaderProps = {
   onChange?: () => void | Promise<void>;
@@ -109,9 +110,10 @@ export function Uploader({ onChange }: UploaderProps) {
         type="button"
         disabled={isUploading}
         onClick={() => inputRef.current?.click()}
-        className="rounded-[var(--r-sm)] bg-navy px-4 py-2 font-sans text-sm text-white hover:bg-navy-mid disabled:opacity-60"
+        className="inline-flex items-center gap-2 rounded-[var(--r-sm)] bg-navy px-4 py-2 font-sans text-sm text-white transition-all duration-150 hover:bg-navy-mid disabled:opacity-60"
       >
-        {isUploading ? "Uploading…" : "Upload PDFs"}
+        {isUploading && <Spinner size={14} />}
+        <span>{isUploading ? "Uploading…" : "Upload PDFs"}</span>
       </button>
       {error && (
         <span className="font-mono text-xs text-[var(--gray-600)]">

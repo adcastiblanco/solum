@@ -1,6 +1,7 @@
 "use client";
 
 import { ARRAY_FIELDS, FIELD_LABELS } from "@/lib/types";
+import { Spinner } from "@/components/spinner";
 
 export type FieldValue = string | string[] | null;
 
@@ -8,6 +9,7 @@ export function FieldCard({
   name,
   value,
   onChange,
+  onBlur,
   onHoverChange,
   isHovered,
   isApproved,
@@ -17,6 +19,7 @@ export function FieldCard({
   name: string;
   value: FieldValue;
   onChange: (next: FieldValue) => void;
+  onBlur?: () => void;
   onHoverChange?: (hovered: boolean) => void;
   isHovered?: boolean;
   isApproved?: boolean;
@@ -30,7 +33,7 @@ export function FieldCard({
     (Array.isArray(value) ? value.length === 0 : value.trim() === "");
 
   const cardClasses = [
-    "rounded-[var(--r-md)] px-4 py-3 transition-colors",
+    "rounded-[var(--r-md)] px-3 py-2 transition-colors",
     isApproved
       ? "border-2 border-[var(--green-700)] bg-[var(--green-50)]"
       : isHovered
@@ -46,26 +49,16 @@ export function FieldCard({
       onMouseEnter={() => onHoverChange?.(true)}
       onMouseLeave={() => onHoverChange?.(false)}
     >
-      <div className="mb-1.5 flex items-center justify-between gap-2">
+      <div className="flex items-center justify-between gap-2">
         <span className="font-sans text-xs text-[var(--gray-600)]">
           {label}
         </span>
-        <div className="flex items-center gap-2">
-          {isApproved && (
-            <span className="rounded-[var(--r-sm)] bg-[var(--green-700)] px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wide text-white">
-              Approved
-            </span>
-          )}
-          <span className="font-mono text-[10px] uppercase tracking-wide text-[var(--gray-400)]">
-            {name}
-          </span>
-          <CheckButton
-            isApproved={!!isApproved}
-            isApproving={!!isApproving}
-            disabled={isMissing && !isApproved}
-            onClick={() => onApprove?.()}
-          />
-        </div>
+        <CheckButton
+          isApproved={!!isApproved}
+          isApproving={!!isApproving}
+          disabled={isMissing && !isApproved}
+          onClick={() => onApprove?.()}
+        />
       </div>
 
       {isArray ? (
@@ -73,6 +66,7 @@ export function FieldCard({
           values={Array.isArray(value) ? value : value ? [value] : []}
           isMissing={isMissing}
           onChange={(next) => onChange(next.length === 0 ? null : next)}
+          onBlur={onBlur}
         />
       ) : (
         <input
@@ -82,7 +76,8 @@ export function FieldCard({
           onChange={(e) =>
             onChange(e.target.value.length === 0 ? null : e.target.value)
           }
-          className={`w-full bg-transparent font-sans text-sm outline-none ${
+          onBlur={onBlur}
+          className={`-mt-0.5 w-full bg-transparent font-sans text-sm outline-none ${
             isMissing
               ? "text-[var(--gray-400)] placeholder:italic"
               : "text-[var(--gray-900)]"
@@ -105,7 +100,20 @@ function CheckButton({
   onClick: () => void;
 }) {
   const base =
-    "group inline-flex h-7 w-7 items-center justify-center rounded-full border transition-colors disabled:cursor-not-allowed disabled:opacity-50";
+    "group inline-flex h-7 w-7 items-center justify-center rounded-full border transition-all duration-150 disabled:opacity-50";
+
+  if (isApproving) {
+    return (
+      <button
+        type="button"
+        aria-label="Approving"
+        disabled
+        className={`${base} border-[var(--green-700)] bg-white text-[var(--green-700)]`}
+      >
+        <Spinner size={12} />
+      </button>
+    );
+  }
 
   if (isApproved) {
     return (
@@ -113,7 +121,6 @@ function CheckButton({
         type="button"
         aria-label="Approved"
         onClick={onClick}
-        disabled={isApproving}
         className={`${base} border-[var(--green-700)] bg-[var(--green-700)] text-white`}
       >
         <CheckIcon />
@@ -126,7 +133,7 @@ function CheckButton({
       type="button"
       aria-label="Approve"
       onClick={onClick}
-      disabled={disabled || isApproving}
+      disabled={disabled}
       className={`${base} border-[var(--gray-200)] bg-white text-[var(--gray-400)] hover:border-[var(--green-700)] hover:text-[var(--green-700)]`}
     >
       <CheckIcon />
@@ -156,10 +163,12 @@ function ArrayInput({
   values,
   isMissing,
   onChange,
+  onBlur,
 }: {
   values: string[];
   isMissing: boolean;
   onChange: (next: string[]) => void;
+  onBlur?: () => void;
 }) {
   if (isMissing) {
     return (
@@ -170,13 +179,14 @@ function ArrayInput({
         onChange={(e) =>
           onChange(e.target.value.length === 0 ? [] : [e.target.value])
         }
-        className="w-full bg-transparent font-sans text-sm italic text-[var(--gray-400)] outline-none placeholder:italic"
+        onBlur={onBlur}
+        className="-mt-0.5 w-full bg-transparent font-sans text-sm italic text-[var(--gray-400)] outline-none placeholder:italic"
       />
     );
   }
 
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className="-mt-0.5 flex flex-col gap-1">
       {values.map((v, i) => (
         <input
           key={i}
@@ -187,6 +197,7 @@ function ArrayInput({
             next[i] = e.target.value;
             onChange(next.filter((s) => s.length > 0));
           }}
+          onBlur={onBlur}
           className="w-full bg-transparent font-sans text-sm text-[var(--gray-900)] outline-none"
         />
       ))}

@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import type { ExtractedField } from "@/lib/types";
+import { Spinner } from "@/components/spinner";
 import { FieldCard, type FieldValue } from "./field-card";
 import type { Highlight } from "./pdf-viewer";
 
@@ -120,6 +121,21 @@ export function ReviewClient({
     return { bbox: field.bbox, confidence: field.confidence };
   }, [hovered, fields]);
 
+  // Auto-approve when the user leaves a field. No-op when the field is empty
+  // or already approved — so plain tab-through of approved fields doesn't
+  // re-fire the API call.
+  const handleAutoApprove = (name: string) => {
+    if (!extractionId || approved[name] || approving[name]) return;
+    const current = values.find((s) => s.name === name);
+    if (!current) return;
+    const v = current.value;
+    const hasValue = Array.isArray(v)
+      ? v.some((x) => x.trim().length > 0)
+      : typeof v === "string" && v.trim().length > 0;
+    if (!hasValue) return;
+    void handleApprove(name);
+  };
+
   const isReady = status === "done";
 
   const unapprovedFields = useMemo(
@@ -176,13 +192,16 @@ export function ReviewClient({
               bulkApproving ||
               unapprovedFields.length === 0
             }
-            className="inline-flex items-center rounded-[var(--r-sm)] bg-navy px-3 py-1.5 font-mono text-xs uppercase tracking-wide text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+            className="inline-flex items-center gap-2 rounded-[var(--r-sm)] bg-navy px-3 py-1.5 font-mono text-xs uppercase tracking-wide text-white transition-all duration-150 hover:opacity-90 disabled:opacity-40"
           >
-            {bulkApproving
-              ? "Approving…"
-              : unapprovedFields.length === 0
-                ? "All approved"
-                : `Approve all (${unapprovedFields.length})`}
+            {bulkApproving && <Spinner size={12} />}
+            <span>
+              {bulkApproving
+                ? "Approving…"
+                : unapprovedFields.length === 0
+                  ? "All approved"
+                  : `Approve all (${unapprovedFields.length})`}
+            </span>
           </button>
         </div>
       </header>
@@ -202,7 +221,7 @@ export function ReviewClient({
             </h2>
             <p className="font-mono text-[10px] uppercase tracking-wide text-[var(--gray-600)]">
               {isReady
-                ? "Edit any value inline, then approve"
+                ? "Edit any value — approves when you leave the field"
                 : "Extraction not complete yet"}
             </p>
           </div>
@@ -214,6 +233,7 @@ export function ReviewClient({
                   name={s.name}
                   value={s.value}
                   onChange={(next) => setFieldValue(s.name, next)}
+                  onBlur={() => handleAutoApprove(s.name)}
                   isHovered={hovered === s.name}
                   onHoverChange={(h) => setHovered(h ? s.name : null)}
                   isApproved={!!approved[s.name]}

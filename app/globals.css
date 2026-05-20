@@ -53,3 +53,28 @@ body {
   color: var(--gray-900);
   font-family: var(--font-sans);
 }
+
+/* Interactive defaults — Tailwind v4 preflight strips cursor: pointer from
+   buttons, so put it back on anything the user is expected to click. */
+button:not(:disabled),
+a,
+[role="button"]:not([aria-disabled="true"]) {
+  cursor: pointer;
+}
+
+button:disabled,
+[aria-disabled="true"] {
+  cursor: not-allowed;
+}
+
+/* Subtle press affordance on interactive controls.
+   Combine with transition-transform on the element for smoothness. */
+button:not(:disabled):active,
+[role="button"]:not([aria-disabled="true"]):active {
+  transform: scale(0.98);
+}
+
+/* Spin keyframes for the inline <Spinner /> component */
+@keyframes solum-spin {
+  to { transform: rotate(360deg); }
+}
