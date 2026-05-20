@@ -1,6 +1,7 @@
 "use client";
 
 import { Uploader } from "./uploader";
+import { SampleBatchButton } from "./sample-batch-button";
 import { DocumentList, type DocumentRow } from "./document-list";
 import { useDocumentPolling } from "@/hooks/useDocumentPolling";
 
@@ -16,7 +17,10 @@ export function DashboardClient({ initial }: { initial: DocumentRow[] }) {
             Upload a clinical document to begin.
           </p>
         </div>
-        <Uploader onChange={refresh} />
+        <div className="flex items-start gap-3">
+          <SampleBatchButton onChange={refresh} />
+          <Uploader onChange={refresh} />
+        </div>
       </header>
 
       <DocumentList documents={documents} onRetry={refresh} />

@@ -90,3 +90,13 @@ Issue 08 — Failure handling + Retry — DONE (2026-05-19)
 - `npx next build` passes (only the pre-existing middleware → proxy deprecation warning).
 
 Next: Issue 09.
+
+Issue 09 — Sample batch — DONE (2026-05-19)
+
+- New client component app/(app)/dashboard/sample-batch-button.tsx renders a navy "Run sample batch" button next to the existing Uploader in the dashboard header. SAMPLE_FILES lists the 6 PDFs that live in the public `samples` bucket (no 01-clinical-progress-note.pdf; files are not bundled in the repo).
+- On click, the component reads the authed user, then runs all 6 in parallel via Promise.all(SAMPLE_FILES.map(processOne)). Each per-file path: fetch `${NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/samples/<name>`, insert a documents row (status='pending', storage_path=`{user_id}/{document_id}-<name>`), call onChange() so the pending row appears immediately, upload the blob to the user's `documents` bucket, then fire-and-forget POST /api/extract — same code path as Uploader.
+- Per-file failures are caught inside the Promise.all map (`.catch(console.error)`), so a fetch/upload failure on one file skips it without aborting the other 5. Storage-upload failures still write status='error' with a user-facing error_message inline so the dashboard Error badge + Retry button work the same way as the regular upload flow.
+- DashboardClient lays the two buttons side by side and passes the same `refresh` from useDocumentPolling as `onChange`, so pending → processing → done transitions for sample docs come through the existing poller with no extra wiring.
+- `npx next build` passes (only the pre-existing middleware → proxy deprecation warning).
+
+Next: Issue 10.
