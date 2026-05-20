@@ -100,3 +100,12 @@ Issue 09 — Sample batch — DONE (2026-05-19)
 - `npx next build` passes (only the pre-existing middleware → proxy deprecation warning).
 
 Next: Issue 10.
+
+Issue 10 — Accuracy page — DONE (2026-05-19)
+
+- New route app/(app)/accuracy/page.tsx is a server component that selects field_name, approved, was_edited from field_reviews (RLS scopes to the current user via the documents→extractions→field_reviews chain). Aggregation is done in JS — group by field_name, count totals/approved/corrected, derive correction_rate_pct = corrected / total * 100, rounded to one decimal. Sorted descending by correction rate so the worst fields surface at the top.
+- Layout: three stat cards across the top (Fields reviewed, Approved, Corrected) on the --canvas background, each as a white --r-md surface with the count in Instrument Serif italic navy. Below, a single table card lists every field with at least one review row: human-readable label (Geist) plus the snake_case field name (Geist Mono) on the left, numeric Reviewed/Approved/Corrected columns, and a navy correction-rate bar over a --gray-100 track with the percentage in Geist Mono on the right.
+- Empty state (zero rows) renders a dashed gray card with "No fields reviewed yet" — no table.
+- No red/yellow semantic colors anywhere on this view; bar fill is navy, track is gray-100. Nav already had the Accuracy link (slice 02), so the page is reachable and auth-gated by the (app) layout.
+- `npx next build` passes (only the pre-existing middleware → proxy deprecation warning).
+
