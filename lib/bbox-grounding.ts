@@ -197,10 +197,14 @@ export function groundFieldsWithTokens(
 
     if (typeof f.value === "string") {
       const def = FIELD_DEFS[f.name];
-      // Longtext: composed values pull from multiple regions of the doc.
-      // Ground each phrase separately and emit one bbox per match.
       if (def?.type === "longtext") {
-        const bboxes = groundLongtext(f.value, pages);
+        // Prefer source_quote (verbatim from the source) over value (which
+        // the model often paraphrases for longtext). When source_quote
+        // doesn't ground, fall back to the value itself.
+        const quote = typeof f.source_quote === "string" ? f.source_quote : null;
+        let bboxes: BBox[] = [];
+        if (quote && quote.trim().length > 0) bboxes = groundLongtext(quote, pages);
+        if (bboxes.length === 0) bboxes = groundLongtext(f.value, pages);
         if (bboxes.length === 0) return { ...f, bbox: null, bboxes: [] };
         return { ...f, bbox: unionBboxesAcrossPages(bboxes), bboxes };
       }

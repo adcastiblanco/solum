@@ -4,13 +4,14 @@ import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Spinner } from "@/components/spinner";
 
+// 07 is the empty Service Request Form template (the target form being
+// filled in, not a source document) — excluded from extraction tests.
 const SAMPLE_FILES = [
   "02-referral-letter.pdf",
   "03-insurance-card.pdf",
   "04-lab-results.pdf",
   "05-patient-intake-form.pdf",
   "06-handwritten-clinical-note.pdf",
-  "07-service-request-form.pdf",
 ];
 
 type Props = {

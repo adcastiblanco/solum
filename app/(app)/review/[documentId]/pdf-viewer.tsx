@@ -33,13 +33,16 @@ const LOUPE_ZOOM = 2.5; // magnification factor of the loupe lens
 
 export function PdfViewer({
   url,
+  mimeType,
   highlight,
   fileName,
 }: {
   url: string | null;
+  mimeType?: string;
   highlight: Highlight | null;
   fileName?: string;
 }) {
+  const isImage = (mimeType ?? "").startsWith("image/");
   const containerRef = useRef<HTMLDivElement | null>(null);
   const pageRefs = useRef<Map<number, HTMLDivElement | null>>(new Map());
   const [numPages, setNumPages] = useState(0);
@@ -147,6 +150,15 @@ export function PdfViewer({
         ref={containerRef}
         className="min-h-0 flex-1 overflow-auto bg-[var(--gray-100)] p-4"
       >
+        {isImage ? (
+          <ImagePage
+            url={url}
+            width={pageWidth}
+            highlight={highlight}
+            loupeOn={loupeOn}
+            registerRef={(el) => pageRefs.current.set(1, el)}
+          />
+        ) : (
         <Document
           file={url}
           options={DOCUMENT_OPTIONS}
@@ -158,7 +170,21 @@ export function PdfViewer({
           }
           error={
             <div className="py-16 text-center font-sans text-sm text-[var(--gray-600)]">
-              Failed to load PDF.
+              <p className="mb-2">Could not render the PDF.</p>
+              <p className="text-xs text-[var(--gray-400)] mb-3">
+                The pdf.js worker may have been blocked, or the signed URL
+                expired (30 min). Try reloading.
+              </p>
+              {url && (
+                <a
+                  href={url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-block rounded-[var(--r-sm)] border border-[var(--gray-200)] bg-white px-3 py-1 text-xs text-navy hover:bg-navy-light"
+                >
+                  Open PDF in new tab
+                </a>
+              )}
             </div>
           }
         >
@@ -199,7 +225,149 @@ export function PdfViewer({
             );
           })}
         </Document>
+        )}
       </div>
+    </div>
+  );
+}
+
+// Single-image render path: same chrome (filename / zoom / loupe) and same
+// bbox overlay as the PDF path, just a raster <img> instead of react-pdf.
+// bbox grounding still uses Doc AI page=1 coordinates so the existing
+// overlay math works unchanged.
+function ImagePage({
+  url,
+  width,
+  highlight,
+  loupeOn,
+  registerRef,
+}: {
+  url: string;
+  width: number | undefined;
+  highlight: Highlight | null;
+  loupeOn: boolean;
+  registerRef: (el: HTMLDivElement | null) => void;
+}) {
+  const pageBoxes = highlight?.bboxes.filter((b) => b.page === 1) ?? [];
+  return (
+    <div
+      ref={registerRef}
+      className="mb-4 overflow-hidden rounded-[var(--r-md)] border border-[var(--gray-200)] bg-white shadow-sm"
+    >
+      <div className="border-b border-[var(--gray-100)] bg-[var(--gray-50)] px-3 py-1 font-mono text-[10px] uppercase tracking-wide text-[var(--gray-600)]">
+        Image
+      </div>
+      <div className="relative">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={url}
+          alt="document"
+          style={width ? { width: `${width}px`, height: "auto" } : { width: "100%", height: "auto" }}
+          draggable={false}
+        />
+        {pageBoxes.map((bbox, idx) => (
+          <BBoxOverlay
+            key={idx}
+            bbox={bbox}
+            confidence={idx === 0 ? highlight?.confidence ?? null : null}
+          />
+        ))}
+        {loupeOn ? <ImageLoupeLens /> : null}
+      </div>
+    </div>
+  );
+}
+
+// Loupe variant that pulls its source pixels from an <img> instead of a
+// canvas. Uses a hidden offscreen canvas to sample the image at full
+// resolution, then drawImage()s the magnified region onto the lens.
+function ImageLoupeLens() {
+  const wrapRef = useRef<HTMLDivElement | null>(null);
+  const lensRef = useRef<HTMLCanvasElement | null>(null);
+  const offscreenRef = useRef<HTMLCanvasElement | null>(null);
+  const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
+
+  useEffect(() => {
+    const wrap = wrapRef.current;
+    if (!wrap) return;
+    const pageContainer = wrap.parentElement;
+    if (!pageContainer) return;
+    const onMove = (e: MouseEvent) => {
+      const rect = pageContainer.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      if (x < 0 || y < 0 || x > rect.width || y > rect.height) {
+        setPos(null);
+        return;
+      }
+      setPos({ x, y });
+    };
+    const onLeave = () => setPos(null);
+    pageContainer.addEventListener("mousemove", onMove);
+    pageContainer.addEventListener("mouseleave", onLeave);
+    return () => {
+      pageContainer.removeEventListener("mousemove", onMove);
+      pageContainer.removeEventListener("mouseleave", onLeave);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!pos) return;
+    const lens = lensRef.current;
+    if (!lens) return;
+    const ctx = lens.getContext("2d");
+    if (!ctx) return;
+    const wrap = wrapRef.current;
+    const pageContainer = wrap?.parentElement;
+    if (!pageContainer) return;
+    const img = pageContainer.querySelector("img") as HTMLImageElement | null;
+    if (!img || !img.complete || img.naturalWidth === 0) return;
+
+    // Cache the source on an offscreen canvas so we can drawImage with
+    // pixel-precise sx/sy from the natural-size space.
+    if (!offscreenRef.current) {
+      offscreenRef.current = document.createElement("canvas");
+    }
+    const off = offscreenRef.current;
+    if (off.width !== img.naturalWidth || off.height !== img.naturalHeight) {
+      off.width = img.naturalWidth;
+      off.height = img.naturalHeight;
+      const offCtx = off.getContext("2d");
+      offCtx?.drawImage(img, 0, 0);
+    }
+
+    const rect = pageContainer.getBoundingClientRect();
+    const sxRatio = img.naturalWidth / rect.width;
+    const syRatio = img.naturalHeight / rect.height;
+    const srcW = (LOUPE_SIZE / LOUPE_ZOOM) * sxRatio;
+    const srcH = (LOUPE_SIZE / LOUPE_ZOOM) * syRatio;
+    const sx = pos.x * sxRatio - srcW / 2;
+    const sy = pos.y * syRatio - srcH / 2;
+
+    ctx.clearRect(0, 0, LOUPE_SIZE, LOUPE_SIZE);
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, LOUPE_SIZE, LOUPE_SIZE);
+    ctx.drawImage(off, sx, sy, srcW, srcH, 0, 0, LOUPE_SIZE, LOUPE_SIZE);
+  }, [pos]);
+
+  return (
+    <div ref={wrapRef} className="pointer-events-none absolute inset-0 z-30">
+      {pos ? (
+        <canvas
+          ref={lensRef}
+          width={LOUPE_SIZE}
+          height={LOUPE_SIZE}
+          style={{
+            position: "absolute",
+            left: pos.x - LOUPE_SIZE / 2,
+            top: pos.y - LOUPE_SIZE / 2,
+            borderRadius: "50%",
+            border: "2px solid var(--navy, #1e3a8a)",
+            boxShadow: "0 8px 24px rgba(0,0,0,0.25)",
+            background: "white",
+          }}
+        />
+      ) : null}
     </div>
   );
 }

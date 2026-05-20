@@ -22,9 +22,13 @@ import type { ExtractedField, FieldValue } from "../lib/types";
 const FILES_DIR = path.resolve(__dirname, "../files");
 
 const argv = process.argv.slice(2);
+// 07 is the blank Service Request Form template (the destination form),
+// not a source document — exclude from the default sweep.
 const targets = argv.length > 0
   ? argv.map((a) => (path.isAbsolute(a) ? a : path.join(FILES_DIR, a)))
-  : fs.readdirSync(FILES_DIR).filter((f) => f.endsWith(".pdf")).map((f) => path.join(FILES_DIR, f));
+  : fs.readdirSync(FILES_DIR)
+      .filter((f) => f.endsWith(".pdf") && f !== "07-service-request-form.pdf")
+      .map((f) => path.join(FILES_DIR, f));
 
 function fmtValue(v: FieldValue): string {
   if (v === null) return "∅";

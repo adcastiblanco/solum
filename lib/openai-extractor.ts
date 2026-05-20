@@ -26,9 +26,28 @@ function client(): OpenAI {
   return cached;
 }
 
-export async function extractWithOpenAI(pdfBytes: Buffer): Promise<ExtractorResult> {
-  const base64 = pdfBytes.toString("base64");
+export async function extractWithOpenAI(
+  bytes: Buffer,
+  mimeType: string = "application/pdf",
+): Promise<ExtractorResult> {
+  const base64 = bytes.toString("base64");
   const openai = client();
+
+  // PDFs go through the `file` content block (SDK is loose-typed for it);
+  // raster images go through `image_url` with a data: URI.
+  const fileBlock: OpenAI.Chat.Completions.ChatCompletionContentPart =
+    mimeType === "application/pdf"
+      ? ({
+          type: "file",
+          file: {
+            filename: "document.pdf",
+            file_data: `data:application/pdf;base64,${base64}`,
+          },
+        } as unknown as OpenAI.Chat.Completions.ChatCompletionContentPart)
+      : {
+          type: "image_url",
+          image_url: { url: `data:${mimeType};base64,${base64}` },
+        };
 
   let response;
   try {
@@ -40,18 +59,7 @@ export async function extractWithOpenAI(pdfBytes: Buffer): Promise<ExtractorResu
         { role: "system", content: SYSTEM_PROMPT_BASE },
         {
           role: "user",
-          content: [
-            {
-              // OpenAI's PDF input content block. The SDK types this loosely so
-              // we cast — at runtime the API accepts it for gpt-4o family.
-              type: "file",
-              file: {
-                filename: "document.pdf",
-                file_data: `data:application/pdf;base64,${base64}`,
-              },
-            } as unknown as OpenAI.Chat.Completions.ChatCompletionContentPart,
-            { type: "text", text: userInstruction() },
-          ],
+          content: [fileBlock, { type: "text", text: userInstruction() }],
         },
       ],
     });

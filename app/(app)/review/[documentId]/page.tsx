@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { FIELD_NAMES, type ExtractedField } from "@/lib/types";
 import { deserializeValue, type FieldValue } from "@/lib/field-reviews";
+import { mimeFromFileName } from "@/lib/mime";
 import type { ReconciliationMeta } from "@/lib/reconciler";
 import { ReviewClient, type InitialReview } from "./review-client";
 
@@ -82,6 +83,7 @@ export default async function ReviewPage({
       fileName={doc.file_name}
       status={doc.status}
       pdfUrl={pdfUrl}
+      mimeType={mimeFromFileName(doc.file_name)}
       fields={fields}
       initialReviews={initialReviews}
       reconciliation={reconciliation}

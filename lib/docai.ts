@@ -126,9 +126,10 @@ function resolveText(
 // feature, plus a fullMarkdown string for the categorizer.
 export async function ocrDocument(
   signedUrlOrBytes: string | Buffer,
+  mimeType: string = "application/pdf",
 ): Promise<DocAiResult> {
   const c = client();
-  const pdfBytes =
+  const bytes =
     typeof signedUrlOrBytes === "string"
       ? await fetchPdfBytes(signedUrlOrBytes)
       : signedUrlOrBytes;
@@ -138,10 +139,11 @@ export async function ocrDocument(
     [response] = await c.processDocument({
       name: processorName(),
       rawDocument: {
-        content: pdfBytes,
-        mimeType: "application/pdf",
+        content: bytes,
+        // Doc AI accepts application/pdf and image/* (png, jpeg, tiff, gif,
+        // bmp, webp) on the standard OCR processor.
+        mimeType,
       },
-      // Future: imagelessMode: true would skip returning page images we don't use.
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

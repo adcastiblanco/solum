@@ -50,6 +50,7 @@ export function ReviewClient({
   fileName,
   status,
   pdfUrl,
+  mimeType,
   fields,
   initialReviews,
   reconciliation,
@@ -59,6 +60,7 @@ export function ReviewClient({
   fileName: string;
   status: string;
   pdfUrl: string | null;
+  mimeType: string;
   fields: ExtractedField[];
   initialReviews: Record<string, InitialReview>;
   reconciliation: Record<string, ReconciliationMeta>;
@@ -231,7 +233,12 @@ export function ReviewClient({
         style={{ gridTemplateColumns: "55fr 45fr" }}
       >
         <section className="overflow-hidden rounded-[var(--r-lg)] border border-[var(--gray-200)] bg-white">
-          <PdfViewer url={pdfUrl} highlight={highlight} fileName={fileName} />
+          <PdfViewer
+            url={pdfUrl}
+            mimeType={mimeType}
+            highlight={highlight}
+            fileName={fileName}
+          />
         </section>
 
         <section className="flex min-h-0 flex-col overflow-hidden rounded-[var(--r-lg)] border border-[var(--gray-200)] bg-white">

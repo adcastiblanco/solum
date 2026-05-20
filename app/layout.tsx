@@ -1,7 +1,7 @@
-import type { Metadata } from "next";
 import { Instrument_Serif } from "next/font/google";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
+import { siteMetadata, siteViewport } from "@/lib/branding/metadata";
 import "./globals.css";
 
 const instrumentSerif = Instrument_Serif({
@@ -11,10 +11,8 @@ const instrumentSerif = Instrument_Serif({
   style: ["normal", "italic"],
 });
 
-export const metadata: Metadata = {
-  title: "Solum Health — Document AI",
-  description: "Clinical document extraction and review",
-};
+export const metadata = siteMetadata;
+export const viewport = siteViewport;
 
 export default function RootLayout({
   children,

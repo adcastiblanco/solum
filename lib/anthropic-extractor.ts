@@ -26,9 +26,29 @@ function client(): Anthropic {
   return cached;
 }
 
-export async function extractWithAnthropic(pdfBytes: Buffer): Promise<ExtractorResult> {
-  const base64 = pdfBytes.toString("base64");
+export async function extractWithAnthropic(
+  bytes: Buffer,
+  mimeType: string = "application/pdf",
+): Promise<ExtractorResult> {
+  const base64 = bytes.toString("base64");
   const anthropic = client();
+
+  // PDFs go in via the `document` content block; raster images go in via
+  // `image`. Same model, different envelope — Claude vision handles both.
+  const fileBlock: Anthropic.Messages.ContentBlockParam =
+    mimeType === "application/pdf"
+      ? {
+          type: "document",
+          source: { type: "base64", media_type: "application/pdf", data: base64 },
+        }
+      : {
+          type: "image",
+          source: {
+            type: "base64",
+            media_type: mimeType as "image/png" | "image/jpeg" | "image/gif" | "image/webp",
+            data: base64,
+          },
+        };
 
   let response: Anthropic.Messages.Message;
   try {
@@ -39,17 +59,7 @@ export async function extractWithAnthropic(pdfBytes: Buffer): Promise<ExtractorR
       messages: [
         {
           role: "user",
-          content: [
-            {
-              type: "document",
-              source: {
-                type: "base64",
-                media_type: "application/pdf",
-                data: base64,
-              },
-            },
-            { type: "text", text: userInstruction() },
-          ],
+          content: [fileBlock, { type: "text", text: userInstruction() }],
         },
       ],
     });

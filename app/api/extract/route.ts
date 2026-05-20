@@ -9,6 +9,7 @@ import { createClient } from "@/lib/supabase/server";
 // votes per field; the final values get bboxes grounded against Doc AI
 // tokens (the only branch that produces reliable per-word bboxes).
 import { fetchPdfBytes, ocrDocument, DocAIError } from "@/lib/docai";
+import { mimeFromFileName } from "@/lib/mime";
 import { structureMarkdown } from "@/lib/docai-structurer";
 import { extractWithOpenAI } from "@/lib/openai-extractor";
 import { extractWithAnthropic } from "@/lib/anthropic-extractor";
@@ -43,7 +44,7 @@ export async function POST(req: Request) {
 
   const { data: doc, error: docErr } = await supabase
     .from("documents")
-    .select("id, storage_path, user_id")
+    .select("id, storage_path, user_id, file_name")
     .eq("id", documentId)
     .single();
 
@@ -68,17 +69,18 @@ export async function POST(req: Request) {
       );
     }
 
-    const pdfBytes = await fetchPdfBytes(signed.signedUrl);
+    const fileBytes = await fetchPdfBytes(signed.signedUrl);
+    const mimeType = mimeFromFileName(doc.file_name);
 
     // Doc AI has to finish first because the structurer reads its markdown
     // and the grounding step needs its tokens. The vision branches don't
     // depend on Doc AI, so we launch them alongside the structurer.
-    const ocr = await ocrDocument(pdfBytes);
+    const ocr = await ocrDocument(fileBytes, mimeType);
 
     const [structuredDocAi, openaiResult, anthropicResult] = await Promise.allSettled([
       structureMarkdown(ocr.fullMarkdown),
-      extractWithOpenAI(pdfBytes),
-      extractWithAnthropic(pdfBytes),
+      extractWithOpenAI(fileBytes, mimeType),
+      extractWithAnthropic(fileBytes, mimeType),
     ]);
 
     const branches: BranchResult[] = [];
