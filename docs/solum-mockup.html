@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Solum Health — UI Mockup</title>
+<link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&family=Geist:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+
+/* ─── DESIGN SYSTEM ─────────────────────────────────────────────── */
+:root {
+  /* Brand */
+  --navy:        #1E3A5F;   /* Solum primary */
+  --navy-light:  #EAF0F7;   /* navy tint for hover/active states */
+  --navy-mid:    #2D5380;   /* slightly lighter navy for accents */
+
+  /* Neutrals */
+  --white:       #FFFFFF;
+  --gray-50:     #F8F8F7;
+  --gray-100:    #F0EFED;
+  --gray-200:    #E2E0DC;
+  --gray-400:    #A8A49E;
+  --gray-600:    #6B6763;
+  --gray-900:    #1A1916;
+
+  /* Semantic */
+  --green-50:    #EAF5F0;
+  --green-700:   #155F3E;
+
+  /* Page canvas */
+  --canvas:      #F0EEE9;
+
+  /* Radius */
+  --r-sm:  6px;
+  --r-md:  10px;
+  --r-lg:  14px;
+
+  /* Type */
+  --font-sans:  'Geist', sans-serif;
+  --font-serif: 'Instrument Serif', serif;
+  --font-mono:  'Geist Mono', monospace;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--font-sans);
+  background: #232220;
+  color: var(--gray-900);
+  padding: 48px 32px;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ─── PRESENTATION ───────────────────────────────────────────────── */
+.group { margin-bottom: 64px; }
+.label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #4A4845;
+  margin-bottom: 10px;
+  padding-left: 2px;
+}
+.screen {
+  background: var(--white);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  box-shadow: 0 12px 56px rgba(0,0,0,0.45);
+}
+
+/* ─── NAV ───────────────────────────────────────────────────────── */
+.nav {
+  height: 52px;
+  background: var(--navy);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 28px;
+}
+.nav-logo {
+  font-family: var(--font-serif);
+  font-size: 18px;
+  color: var(--white);
+  letter-spacing: -0.01em;
+}
+.nav-logo em { font-style: italic; opacity: 0.6; }
+.nav-links { display: flex; gap: 2px; }
+.nav-link {
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255,255,255,0.55);
+  padding: 6px 14px;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+}
+.nav-link.active {
+  color: var(--white);
+  background: rgba(255,255,255,0.12);
+}
+.nav-avatar {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.2);
+  color: var(--white);
+  font-size: 11px;
+  font-weight: 600;
+  display: flex; align-items: center; justify-content: center;
+}
+
+/* ─── BUTTONS ───────────────────────────────────────────────────── */
+.btn {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 500;
+  border: none;
+  border-radius: var(--r-sm);
+  padding: 8px 16px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  line-height: 1;
+}
+.btn-primary { background: var(--navy); color: var(--white); }
+.btn-ghost {
+  background: transparent;
+  color: var(--gray-600);
+  border: 1px solid var(--gray-200);
+}
+
+/* ─── AUTH ──────────────────────────────────────────────────────── */
+.auth-wrap {
+  min-height: 480px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--canvas);
+}
+.auth-card {
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--r-lg);
+  padding: 40px;
+  width: 340px;
+  box-shadow: 0 4px 20px rgba(30,58,95,0.08);
+}
+.auth-title {
+  font-family: var(--font-serif);
+  font-size: 22px;
+  color: var(--navy);
+  margin-bottom: 2px;
+}
+.auth-sub { font-size: 13px; color: var(--gray-400); margin-bottom: 28px; }
+.form-field { margin-bottom: 14px; }
+.form-field label {
+  display: block;
+  font-size: 11px; font-weight: 600;
+  color: var(--gray-600);
+  letter-spacing: 0.06em; text-transform: uppercase;
+  margin-bottom: 6px;
+}
+.form-field input {
+  width: 100%;
+  font-family: var(--font-sans); font-size: 14px;
+  color: var(--gray-900);
+  background: var(--gray-50);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--r-sm);
+  padding: 9px 12px; outline: none;
+}
+.form-field input:focus { border-color: var(--navy); }
+.auth-card .btn-primary {
+  width: 100%; justify-content: center;
+  padding: 10px; margin-top: 6px; font-size: 14px;
+}
+.auth-footer {
+  text-align: center; font-size: 12px;
+  color: var(--gray-400); margin-top: 18px;
+}
+.auth-footer a { color: var(--navy); font-weight: 500; cursor: pointer; }
+
+/* ─── DASHBOARD ─────────────────────────────────────────────────── */
+.dash-body { background: var(--canvas); min-height: 440px; padding: 32px; }
+.dash-top {
+  display: flex; align-items: flex-end;
+  justify-content: space-between; margin-bottom: 20px;
+}
+.dash-title {
+  font-family: var(--font-serif);
+  font-size: 26px; color: var(--gray-900); line-height: 1; margin-bottom: 3px;
+}
+.dash-sub { font-size: 13px; color: var(--gray-400); }
+.dash-actions { display: flex; gap: 8px; }
+
+.doc-list {
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--r-md); overflow: hidden;
+}
+.doc-list-header {
+  display: grid;
+  grid-template-columns: 1fr 160px 120px 72px;
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--gray-100);
+  background: var(--gray-50);
+}
+.doc-list-header span {
+  font-size: 11px; font-weight: 600;
+  color: var(--gray-400);
+  text-transform: uppercase; letter-spacing: 0.08em;
+}
+.doc-row {
+  display: grid;
+  grid-template-columns: 1fr 160px 120px 72px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--gray-100);
+  align-items: center;
+}
+.doc-row:last-child { border-bottom: none; }
+.doc-name { font-size: 14px; font-weight: 500; color: var(--gray-900); }
+.doc-date { font-size: 13px; color: var(--gray-400); }
+
+.badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 11px; font-weight: 600;
+  padding: 3px 9px; border-radius: 20px;
+  text-transform: uppercase; letter-spacing: 0.04em;
+}
+.badge-done    { background: var(--green-50);   color: var(--green-700); }
+.badge-proc    { background: var(--navy-light);  color: var(--navy); }
+.badge-pending { background: var(--gray-100);    color: var(--gray-600); }
+
+.proc-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--navy);
+  animation: blink 1.2s ease-in-out infinite;
+}
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+.btn-review {
+  font-size: 12px; font-weight: 600;
+  color: var(--navy);
+  background: none; border: none;
+  cursor: pointer; font-family: var(--font-sans); padding: 0;
+}
+
+/* ─── SPLIT VIEW ────────────────────────────────────────────────── */
+.split { display: grid; grid-template-columns: 1fr 400px; min-height: 640px; }
+
+/* PDF panel */
+.pdf-panel {
+  background: #2E2C28;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 28px 24px; gap: 12px;
+}
+.pdf-toolbar {
+  display: flex; align-items: center;
+  gap: 10px; align-self: stretch; margin-bottom: 4px;
+}
+.pdf-toolbar-name { font-size: 12px; color: #8A8680; font-weight: 500; }
+.pdf-pg { font-family: var(--font-mono); font-size: 11px; color: #5A5750; margin-left: auto; }
+.pdf-doc {
+  background: var(--white);
+  width: 100%; max-width: 460px;
+  aspect-ratio: 8.5/11;
+  border-radius: 3px;
+  box-shadow: 0 4px 32px rgba(0,0,0,0.55);
+  padding: 40px 44px;
+  position: relative; overflow: hidden;
+}
+.pdf-content { font-size: 9.5px; line-height: 1.65; color: #2A2A2A; }
+.pdf-doc-title {
+  font-weight: 700; font-size: 11px;
+  text-align: center;
+  border-bottom: 1px solid #CCC;
+  padding-bottom: 8px; margin-bottom: 14px;
+  letter-spacing: 0.04em; text-transform: uppercase;
+}
+.pdf-sec { margin-bottom: 11px; }
+.pdf-sec-head {
+  font-size: 8.5px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.08em;
+  color: #888; margin-bottom: 4px;
+}
+.pdf-line { margin-bottom: 2px; }
+.pdf-line b { font-weight: 600; }
+
+/* BBox */
+.bbox {
+  position: absolute;
+  border: 1.5px solid var(--navy);
+  background: rgba(30,58,95,0.08);
+  border-radius: 2px;
+  pointer-events: none;
+}
+.bbox-tag {
+  position: absolute;
+  bottom: calc(100% + 3px); left: 0;
+  background: var(--navy);
+  color: white;
+  font-family: var(--font-mono);
+  font-size: 8px; font-weight: 500;
+  padding: 2px 6px; border-radius: 3px;
+  white-space: nowrap; letter-spacing: 0.04em;
+}
+
+/* Form panel */
+.form-panel {
+  background: var(--white);
+  border-left: 1px solid var(--gray-100);
+  display: flex; flex-direction: column;
+}
+.form-head {
+  padding: 18px 22px 16px;
+  border-bottom: 1px solid var(--gray-100);
+  display: flex; justify-content: space-between; align-items: center;
+}
+.form-title {
+  font-family: var(--font-serif);
+  font-size: 17px; color: var(--gray-900); line-height: 1; margin-bottom: 2px;
+}
+.form-sub { font-size: 11px; color: var(--gray-400); }
+
+.form-scroll { flex: 1; overflow-y: auto; padding: 14px 22px; }
+
+.sec-div {
+  font-size: 10px; font-weight: 600;
+  color: var(--gray-400);
+  text-transform: uppercase; letter-spacing: 0.1em;
+  margin: 18px 0 10px;
+  display: flex; align-items: center; gap: 8px;
+}
+.sec-div::after { content: ''; flex: 1; height: 1px; background: var(--gray-100); }
+.sec-div:first-child { margin-top: 0; }
+
+/* Field card */
+.field-card {
+  border: 1px solid var(--gray-100);
+  border-radius: var(--r-sm);
+  padding: 8px 12px;
+  margin-bottom: 6px;
+  background: var(--white);
+  transition: border-color 0.15s;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.field-card:hover { border-color: var(--gray-200); }
+.field-card.hovered { border-color: var(--navy); background: var(--navy-light); }
+.field-card.approved { border-color: var(--green-700); background: var(--green-50); }
+.field-card.missing  { border-color: var(--gray-200); background: var(--gray-50); }
+
+.field-inner { flex: 1; min-width: 0; }
+.field-label {
+  font-size: 10px; font-weight: 600;
+  color: var(--gray-400);
+  text-transform: uppercase; letter-spacing: 0.07em;
+  margin-bottom: 3px;
+}
+.field-input {
+  width: 100%;
+  font-family: var(--font-sans); font-size: 13px;
+  color: var(--gray-900);
+  background: transparent; border: none; outline: none;
+  padding: 0; line-height: 1.4;
+}
+.field-input::placeholder {
+  color: var(--gray-400); font-style: italic; font-size: 12px;
+}
+
+/* Approve icon button */
+.btn-check {
+  flex-shrink: 0;
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  border: 1.5px solid var(--gray-200);
+  background: transparent;
+  color: var(--gray-400);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-size: 13px;
+  line-height: 1;
+}
+.btn-check:hover {
+  border-color: var(--green-700);
+  color: var(--green-700);
+  background: var(--green-50);
+}
+.field-card.approved .btn-check {
+  border-color: var(--green-700);
+  background: var(--green-50);
+  color: var(--green-700);
+}
+.field-card.missing .btn-check { opacity: 0.5; }
+
+/* Form footer */
+.form-footer {
+  padding: 14px 22px;
+  border-top: 1px solid var(--gray-100);
+  display: flex; justify-content: space-between; align-items: center;
+}
+.form-progress { font-size: 12px; color: var(--gray-400); }
+.form-progress strong { color: var(--gray-900); font-weight: 600; }
+
+/* ─── ACCURACY ──────────────────────────────────────────────────── */
+.acc-body { background: var(--canvas); min-height: 420px; padding: 32px; }
+.acc-title {
+  font-family: var(--font-serif);
+  font-size: 26px; color: var(--gray-900); line-height: 1; margin-bottom: 3px;
+}
+.acc-sub { font-size: 13px; color: var(--gray-400); margin-bottom: 24px; }
+.stats-row {
+  display: grid; grid-template-columns: repeat(3,1fr);
+  gap: 12px; margin-bottom: 20px;
+}
+.stat-card {
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--r-md); padding: 18px 20px;
+}
+.stat-val {
+  font-family: var(--font-serif);
+  font-size: 34px; color: var(--navy); line-height: 1; margin-bottom: 4px;
+}
+.stat-lbl { font-size: 12px; color: var(--gray-400); }
+
+.acc-table {
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--r-md); overflow: hidden;
+}
+.acc-head {
+  display: grid;
+  grid-template-columns: 2fr 72px 72px 72px 1fr;
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--gray-100);
+  background: var(--gray-50);
+}
+.acc-head span {
+  font-size: 11px; font-weight: 600;
+  color: var(--gray-400);
+  text-transform: uppercase; letter-spacing: 0.08em;
+}
+.acc-row {
+  display: grid;
+  grid-template-columns: 2fr 72px 72px 72px 1fr;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--gray-100);
+  align-items: center;
+}
+.acc-row:last-child { border-bottom: none; }
+.acc-field { font-size: 13px; font-weight: 500; color: var(--gray-900); font-family: var(--font-mono); }
+.acc-num   { font-size: 13px; color: var(--gray-600); font-family: var(--font-mono); }
+.bar-wrap  { display: flex; align-items: center; gap: 8px; }
+.bar-track { flex: 1; height: 4px; background: var(--gray-100); border-radius: 2px; overflow: hidden; }
+.bar-fill  { height: 100%; border-radius: 2px; background: var(--navy); }
+.bar-pct   { font-family: var(--font-mono); font-size: 11px; color: var(--gray-400); white-space: nowrap; }
+
+</style>
+</head>
+<body>
+
+<!-- 01 LOGIN -->
+<div class="group">
+  <div class="label">01 — Login</div>
+  <div class="screen">
+    <div class="auth-wrap">
+      <div class="auth-card">
+        <div class="auth-title">Solum <em>Health</em></div>
+        <div class="auth-sub">Sign in to continue</div>
+        <div class="form-field">
+          <label>Email</label>
+          <input type="email" value="dr.sarah@clinic.com" readonly>
+        </div>
+        <div class="form-field">
+          <label>Password</label>
+          <input type="password" value="••••••••••" readonly>
+        </div>
+        <button class="btn btn-primary">Sign in</button>
+        <div class="auth-footer">No account? <a>Create one</a></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 02 DASHBOARD -->
+<div class="group">
+  <div class="label">02 — Dashboard</div>
+  <div class="screen">
+    <div class="nav">
+      <div class="nav-logo">Solum <em>Health</em></div>
+      <div class="nav-links">
+        <div class="nav-link active">Documents</div>
+        <div class="nav-link">Accuracy</div>
+      </div>
+      <div class="nav-avatar">SH</div>
+    </div>
+    <div class="dash-body">
+      <div class="dash-top">
+        <div>
+          <div class="dash-title">Documents</div>
+          <div class="dash-sub">Upload clinical documents to auto-fill service requests</div>
+        </div>
+        <div class="dash-actions">
+          <button class="btn btn-ghost">Run sample batch</button>
+          <button class="btn btn-primary">Upload</button>
+        </div>
+      </div>
+      <div class="doc-list">
+        <div class="doc-list-header">
+          <span>Name</span>
+          <span>Uploaded</span>
+          <span>Status</span>
+          <span></span>
+        </div>
+        <div class="doc-row">
+          <div class="doc-name">Clinical Progress Note</div>
+          <div class="doc-date">Today, 9:14 am</div>
+          <div><span class="badge badge-done">Done</span></div>
+          <div><button class="btn-review">Review</button></div>
+        </div>
+        <div class="doc-row">
+          <div class="doc-name">Referral Letter</div>
+          <div class="doc-date">Today, 9:15 am</div>
+          <div><span class="badge badge-done">Done</span></div>
+          <div><button class="btn-review">Review</button></div>
+        </div>
+        <div class="doc-row">
+          <div class="doc-name">Insurance Card</div>
+          <div class="doc-date">Today, 9:16 am</div>
+          <div><span class="badge badge-proc"><span class="proc-dot"></span>Processing</span></div>
+          <div></div>
+        </div>
+        <div class="doc-row">
+          <div class="doc-name">Lab Results</div>
+          <div class="doc-date">Today, 9:12 am</div>
+          <div><span class="badge badge-done">Done</span></div>
+          <div><button class="btn-review">Review</button></div>
+        </div>
+        <div class="doc-row">
+          <div class="doc-name">Patient Intake Form</div>
+          <div class="doc-date">Today, 9:10 am</div>
+          <div><span class="badge badge-done">Done</span></div>
+          <div><button class="btn-review">Review</button></div>
+        </div>
+        <div class="doc-row">
+          <div class="doc-name">Handwritten Clinical Note</div>
+          <div class="doc-date">Yesterday</div>
+          <div><span class="badge badge-pending">Pending</span></div>
+          <div><button class="btn-review">Review</button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 03 REVIEW -->
+<div class="group">
+  <div class="label">03 — Review — hover on field card highlights the source in the PDF</div>
+  <div class="screen">
+    <div class="nav">
+      <div class="nav-logo">Solum <em>Health</em></div>
+      <div class="nav-links">
+        <div class="nav-link">Documents</div>
+        <div class="nav-link">Accuracy</div>
+      </div>
+      <div class="nav-avatar">SH</div>
+    </div>
+    <div class="split">
+
+      <!-- PDF -->
+      <div class="pdf-panel">
+        <div class="pdf-toolbar">
+          <span class="pdf-toolbar-name">Clinical Progress Note</span>
+          <span class="pdf-pg">Page 1 / 2</span>
+        </div>
+        <div class="pdf-doc">
+          <div class="pdf-content">
+            <div class="pdf-doc-title">Clinical Progress Note</div>
+            <div class="pdf-sec">
+              <div class="pdf-sec-head">Patient Information</div>
+              <div class="pdf-line"><b>Name:</b> Margaret A. Thompson</div>
+              <div class="pdf-line"><b>DOB:</b> 03/14/1968 &nbsp;&nbsp; <b>Gender:</b> Female</div>
+              <div class="pdf-line"><b>Phone:</b> (555) 847-2931</div>
+              <div class="pdf-line"><b>Address:</b> 412 Elm St, Springfield, IL 62701</div>
+            </div>
+            <div class="pdf-sec">
+              <div class="pdf-sec-head">Insurance</div>
+              <div class="pdf-line"><b>Company:</b> BlueCross BlueShield</div>
+              <div class="pdf-line"><b>Member ID:</b> BCB-449821-TH</div>
+              <div class="pdf-line"><b>Group:</b> GRP-7743</div>
+            </div>
+            <div class="pdf-sec">
+              <div class="pdf-sec-head">Provider</div>
+              <div class="pdf-line"><b>Physician:</b> Dr. James R. Patel, MD</div>
+              <div class="pdf-line"><b>NPI:</b> 1234567890</div>
+              <div class="pdf-line"><b>Facility:</b> Riverside Medical Center</div>
+            </div>
+            <div class="pdf-sec">
+              <div class="pdf-sec-head">Diagnoses</div>
+              <div class="pdf-line">E11.9 — Type 2 Diabetes Mellitus, uncontrolled</div>
+              <div class="pdf-line">I10 — Essential Hypertension</div>
+              <div class="pdf-line">M54.5 — Low Back Pain</div>
+            </div>
+            <div class="pdf-sec">
+              <div class="pdf-sec-head">Procedure Codes</div>
+              <div class="pdf-line">99214 — Office visit, established patient</div>
+              <div class="pdf-line">83036 — Hemoglobin A1C test</div>
+            </div>
+          </div>
+          <!-- BBox overlay — patient_name hovered -->
+          <div class="bbox" style="top:77px; left:63px; width:150px; height:12px;">
+            <div class="bbox-tag">patient_name · 97%</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Form -->
+      <div class="form-panel">
+        <div class="form-head">
+          <div>
+            <div class="form-title">Service Request</div>
+            <div class="form-sub">12 fields extracted — 4 approved</div>
+          </div>
+          <button class="btn btn-ghost" style="font-size:12px;padding:6px 12px;">Approve all</button>
+        </div>
+
+        <div class="form-scroll">
+
+          <div class="sec-div">Patient</div>
+
+          <!-- hovered: shows bbox in PDF -->
+          <div class="field-card hovered">
+            <div class="field-inner">
+              <div class="field-label">Patient Name</div>
+              <input class="field-input" type="text" value="Margaret A. Thompson">
+            </div>
+            <button class="btn-check">✓</button>
+          </div>
+
+          <div class="field-card approved">
+            <div class="field-inner">
+              <div class="field-label">Date of Birth</div>
+              <input class="field-input" type="text" value="03/14/1968" readonly>
+            </div>
+            <button class="btn-check">✓</button>
+          </div>
+
+          <div class="field-card approved">
+            <div class="field-inner">
+              <div class="field-label">Gender</div>
+              <input class="field-input" type="text" value="Female" readonly>
+            </div>
+            <button class="btn-check">✓</button>
+          </div>
+
+          <div class="field-card">
+            <div class="field-inner">
+              <div class="field-label">Phone</div>
+              <input class="field-input" type="text" value="(555) 847-2931">
+            </div>
+            <button class="btn-check">✓</button>
+          </div>
+
+          <div class="sec-div">Insurance</div>
+
+          <div class="field-card approved">
+            <div class="field-inner">
+              <div class="field-label">Insurance Company</div>
+              <input class="field-input" type="text" value="BlueCross BlueShield" readonly>
+            </div>
+            <button class="btn-check">✓</button>
+          </div>
+
+          <div class="field-card">
+            <div class="field-inner">
+              <div class="field-label">Member ID</div>
+              <input class="field-input" type="text" value="BCB-449821-TH">
+            </div>
+            <button class="btn-check">✓</button>
+          </div>
+
+          <div class="field-card">
+            <div class="field-inner">
+              <div class="field-label">Group Number</div>
+              <input class="field-input" type="text" value="GRP-7743">
+            </div>
+            <button class="btn-check">✓</button>
+          </div>
+
+          <div class="sec-div">Provider</div>
+
+          <div class="field-card approved">
+            <div class="field-inner">
+              <div class="field-label">Provider Name</div>
+              <input class="field-input" type="text" value="Dr. James R. Patel, MD" readonly>
+            </div>
+            <button class="btn-check">✓</button>
+          </div>
+
+          <div class="field-card">
+            <div class="field-inner">
+              <div class="field-label">NPI</div>
+              <input class="field-input" type="text" value="1234567890">
+            </div>
+            <button class="btn-check">✓</button>
+          </div>
+
+          <div class="sec-div">Clinical</div>
+
+          <div class="field-card">
+            <div class="field-inner">
+              <div class="field-label">Diagnosis Codes</div>
+              <input class="field-input" type="text" value="E11.9, I10, M54.5">
+            </div>
+            <button class="btn-check">✓</button>
+          </div>
+
+          <div class="field-card">
+            <div class="field-inner">
+              <div class="field-label">CPT Codes</div>
+              <input class="field-input" type="text" value="99214, 83036">
+            </div>
+            <button class="btn-check">✓</button>
+          </div>
+
+          <!-- Missing -->
+          <div class="field-card missing">
+            <div class="field-inner">
+              <div class="field-label">Assessment Score</div>
+              <input class="field-input" type="text" placeholder="Not found — enter manually">
+            </div>
+            <button class="btn-check">✓</button>
+          </div>
+
+        </div>
+
+        <div class="form-footer">
+          <div class="form-progress"><strong>4</strong> / 12 approved</div>
+          <button class="btn btn-primary">Save form</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- 04 ACCURACY -->
+<div class="group">
+  <div class="label">04 — Accuracy</div>
+  <div class="screen">
+    <div class="nav">
+      <div class="nav-logo">Solum <em>Health</em></div>
+      <div class="nav-links">
+        <div class="nav-link">Documents</div>
+        <div class="nav-link active">Accuracy</div>
+      </div>
+      <div class="nav-avatar">SH</div>
+    </div>
+    <div class="acc-body">
+      <div class="acc-title">Accuracy</div>
+      <div class="acc-sub">How often users correct auto-filled fields</div>
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-val">247</div>
+          <div class="stat-lbl">Fields reviewed</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-val">89%</div>
+          <div class="stat-lbl">Approved without edits</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-val">27</div>
+          <div class="stat-lbl">Fields corrected</div>
+        </div>
+      </div>
+      <div class="acc-table">
+        <div class="acc-head">
+          <span>Field</span>
+          <span>Total</span>
+          <span>Approved</span>
+          <span>Corrected</span>
+          <span>Correction rate</span>
+        </div>
+        <div class="acc-row">
+          <div class="acc-field">patient_name</div>
+          <div class="acc-num">42</div><div class="acc-num">41</div><div class="acc-num">1</div>
+          <div class="bar-wrap"><div class="bar-track"><div class="bar-fill" style="width:2%"></div></div><span class="bar-pct">2%</span></div>
+        </div>
+        <div class="acc-row">
+          <div class="acc-field">insurance_company</div>
+          <div class="acc-num">38</div><div class="acc-num">35</div><div class="acc-num">3</div>
+          <div class="bar-wrap"><div class="bar-track"><div class="bar-fill" style="width:8%"></div></div><span class="bar-pct">8%</span></div>
+        </div>
+        <div class="acc-row">
+          <div class="acc-field">member_id</div>
+          <div class="acc-num">38</div><div class="acc-num">29</div><div class="acc-num">9</div>
+          <div class="bar-wrap"><div class="bar-track"><div class="bar-fill" style="width:24%"></div></div><span class="bar-pct">24%</span></div>
+        </div>
+        <div class="acc-row">
+          <div class="acc-field">diagnosis_codes</div>
+          <div class="acc-num">35</div><div class="acc-num">31</div><div class="acc-num">4</div>
+          <div class="bar-wrap"><div class="bar-track"><div class="bar-fill" style="width:11%"></div></div><span class="bar-pct">11%</span></div>
+        </div>
+        <div class="acc-row">
+          <div class="acc-field">provider_npi</div>
+          <div class="acc-num">30</div><div class="acc-num">20</div><div class="acc-num">10</div>
+          <div class="bar-wrap"><div class="bar-track"><div class="bar-fill" style="width:33%"></div></div><span class="bar-pct">33%</span></div>
+        </div>
+        <div class="acc-row">
+          <div class="acc-field">clinical_history</div>
+          <div class="acc-num">28</div><div class="acc-num">28</div><div class="acc-num">0</div>
+          <div class="bar-wrap"><div class="bar-track"><div class="bar-fill" style="width:0%"></div></div><span class="bar-pct">0%</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
